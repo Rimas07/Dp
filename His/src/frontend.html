@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIS - Система управления медицинской информацией</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            text-align: center;
+            color: #7f8c8d;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-btn:hover {
+            background: #3498db;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .nav-btn.active {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            min-height: 500px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #27ae60;
+        }
+
+        .status-offline {
+            background: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .nav {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .nav-btn {
+                width: 200px;
+            }
+
+            .container {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 HIS - Система управления медицинской информацией</h1>
+            <p>Комплексная система для управления медицинскими данными и тенантами</p>
+        </div>
+
+        <nav class="nav">
+            <button class="nav-btn" onclick="showSection('login')">🔐 Авторизация</button>
+            <button class="nav-btn" onclick="showSection('tenants')">🏢 Компании</button>
+            <button class="nav-btn" onclick="showSection('patients')">👥 Пациенты</button>
+            <button class="nav-btn" onclick="showSection('limits')">📊 Лимиты</button>
+            <button class="nav-btn" onclick="showSection('audit')">📋 Аудит</button>
+            <button class="nav-btn" onclick="logout()" style="background: #e74c3c;">🚪 Выйти</button>
+        </nav>
+
+        <div class="content">
+            <!-- Секция авторизации -->
+            <div id="login" class="section active">
+                <h2>🔐 Авторизация</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Пароль:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Войти</button>
+                </form>
+                <div id="loginMessage"></div>
+                <button onclick="debugToken()" class="btn" style="margin-top: 10px;">🔍 Отладка токена</button>
+            </div>
+
+            <!-- Секция создания компании -->
+            <div id="tenants" class="section">
+                <h2>🏢 Управление компаниями</h2>
+                <form id="createCompanyForm">
+                    <h3>Создать новую компанию</h3>
+                    <div class="form-group">
+                        <label for="companyName">Название компании:</label>
+                        <input type="text" id="companyName" name="companyName" required>
+                    </div>
+                    <h4>Данные администратора:</h4>
+                    <div class="form-group">
+                        <label for="adminName">Имя:</label>
+                        <input type="text" id="adminName" name="adminName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="adminEmail">Email:</label>
+                        <input type="email" id="adminEmail" name="adminEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="adminPassword">Пароль:</label>
+                        <input type="password" id="adminPassword" name="adminPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Создать компанию</button>
+                </form>
+                <div id="companyMessage"></div>
+            </div>
+
+            <!-- Секция пациентов -->
+            <div id="patients" class="section">
+                <h2>👥 Управление пациентами</h2>
+                <div class="form-group">
+                    <label for="tenantId">ID Тенанта:</label>
+                    <input type="text" id="tenantId" name="tenantId" placeholder="Введите ID тенанта">
+                </div>
+                <button onclick="loadPatients()" class="btn">Загрузить пациентов</button>
+                <button onclick="showCreatePatientForm()" class="btn btn-success">Добавить пациента</button>
+
+                <div id="createPatientForm" class="hidden">
+                    <h3>Добавить нового пациента</h3>
+                    <form id="patientForm">
+                        <div class="form-group">
+                            <label for="patientName">Имя:</label>
+                            <input type="text" id="patientName" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="patientSurname">Фамилия:</label>
+                            <input type="text" id="patientSurname" name="surname" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="patientAge">Возраст:</label>
+                            <input type="text" id="patientAge" name="age" required placeholder="Например: 25">
+                        </div>
+                        <button type="submit" class="btn btn-success">Сохранить пациента</button>
+                        <button type="button" onclick="hideCreatePatientForm()" class="btn btn-danger">Отмена</button>
+                    </form>
+                </div>
+
+                <div id="patientsList"></div>
+                <div id="patientsMessage"></div>
+            </div>
+
+            <!-- Секция лимитов -->
+            <div id="limits" class="section">
+                <h2>📊 Управление лимитами</h2>
+                <div class="form-group">
+                    <label for="limitsTenantId">ID Тенанта:</label>
+                    <input type="text" id="limitsTenantId" name="limitsTenantId" placeholder="Введите ID тенанта">
+                </div>
+                <button onclick="loadLimits()" class="btn">Загрузить лимиты</button>
+                <button onclick="loadUsage()" class="btn">Загрузить статистику</button>
+
+                <div id="limitsContent"></div>
+                <div id="limitsMessage"></div>
+            </div>
+
+            <!-- Секция аудита -->
+            <div id="audit" class="section">
+                <h2>📋 Журнал аудита</h2>
+                <p>Здесь отображается журнал всех действий в системе.</p>
+                <button onclick="loadSystemStats()" class="btn">🔄 Обновить статистику</button>
+                <button onclick="testPatientsCount()" class="btn">🔍 Проверить пациентов</button>
+                <div class="card">
+                    <h3>Статистика системы</h3>
+                    <div class="grid">
+                        <div class="card">
+                            <h4>Общее количество тенантов</h4>
+                            <p id="totalTenants">Загрузка...</p>
+                        </div>
+                        <div class="card">
+                            <h4>Общее количество пациентов</h4>
+                            <p id="totalPatients">Загрузка...</p>
+                        </div>
+                        <div class="card">
+                            <h4>Статус системы</h4>
+                            <p><span class="status-indicator status-online"></span>Онлайн</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Конфигурация API
+        const API_BASE_URL = 'http://localhost:3000';
+        let currentToken = localStorage.getItem('authToken');
+        let currentTenantId = localStorage.getItem('currentTenantId');
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function () {
+            if (currentToken) {
+                showMessage('loginMessage', 'Вы уже авторизованы', 'success');
+                // Автоматически заполняем Tenant ID если он сохранен
+                if (currentTenantId) {
+                    document.getElementById('tenantId').value = currentTenantId;
+                    document.getElementById('limitsTenantId').value = currentTenantId;
+                }
+            } else {
+                showMessage('loginMessage', 'Необходимо авторизоваться для работы с системой', 'error');
+            }
+            loadSystemStats();
+        });
+
+        // Навигация
+        function showSection(sectionId) {
+            // Скрыть все секции
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Убрать активный класс с кнопок
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Показать выбранную секцию
+            document.getElementById(sectionId).classList.add('active');
+
+            // Добавить активный класс к кнопке
+            event.target.classList.add('active');
+        }
+
+        // Утилиты для сообщений
+        function showMessage(elementId, message, type = 'success') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                element.innerHTML = '';
+            }, 5000);
+        }
+
+        // Авторизация
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentToken = data.accessToken; // Исправлено: accessToken вместо access_token
+                    currentTenantId = data.tenantId; // Сохраняем tenantId
+                    localStorage.setItem('authToken', currentToken);
+                    localStorage.setItem('currentTenantId', currentTenantId);
+                    showMessage('loginMessage', `Успешная авторизация! Tenant ID: ${currentTenantId}`, 'success');
+                    console.log('Токен сохранен:', currentToken);
+                    console.log('Tenant ID сохранен:', currentTenantId);
+                } else {
+                    showMessage('loginMessage', `Ошибка: ${data.message || 'Неверные учетные данные'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('loginMessage', `Ошибка подключения: ${error.message}`, 'error');
+            }
+        });
+
+        // Создание компании
+        document.getElementById('createCompanyForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const companyData = {
+                companyName: document.getElementById('companyName').value,
+                user: {
+                    name: document.getElementById('adminName').value,
+                    email: document.getElementById('adminEmail').value,
+                    password: document.getElementById('adminPassword').value
+                }
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/tenants/create-company`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(companyData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('companyMessage', `Компания "${data.companyName}" успешно создана! ID: ${data.tenantId}`, 'success');
+                    document.getElementById('createCompanyForm').reset();
+                } else {
+                    showMessage('companyMessage', `Ошибка: ${data.message || 'Не удалось создать компанию'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('companyMessage', `Ошибка подключения: ${error.message}`, 'error');
+            }
+        });
+
+        // Управление пациентами
+        function showCreatePatientForm() {
+            document.getElementById('createPatientForm').classList.remove('hidden');
+        }
+
+        function hideCreatePatientForm() {
+            document.getElementById('createPatientForm').classList.add('hidden');
+            document.getElementById('patientForm').reset();
+        }
+
+        document.getElementById('patientForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const tenantId = document.getElementById('tenantId').value;
+            if (!tenantId) {
+                showMessage('patientsMessage', 'Введите ID тенанта', 'error');
+                return;
+            }
+
+            if (!currentToken) {
+                showMessage('patientsMessage', 'Необходимо авторизоваться', 'error');
+                return;
+            }
+
+            const patientData = {
+                name: document.getElementById('patientName').value,
+                surname: document.getElementById('patientSurname').value,
+                age: document.getElementById('patientAge').value // Возраст как строка согласно схеме
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Tenant-ID': tenantId,
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify(patientData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('patientsMessage', 'Пациент успешно добавлен!', 'success');
+                    document.getElementById('patientForm').reset();
+                    hideCreatePatientForm();
+                    loadPatients();
+                } else {
+                    showMessage('patientsMessage', `Ошибка: ${data.message || 'Не удалось добавить пациента'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('patientsMessage', `Ошибка подключения: ${error.message}`, 'error');
+            }
+        });
+
+        async function loadPatients() {
+            const tenantId = document.getElementById('tenantId').value;
+            if (!tenantId) {
+                showMessage('patientsMessage', 'Введите ID тенанта', 'error');
+                return;
+            }
+
+            if (!currentToken) {
+                showMessage('patientsMessage', 'Необходимо авторизоваться', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients`, {
+                    headers: {
+                        'X-Tenant-ID': tenantId,
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayPatients(data);
+                } else {
+                    showMessage('patientsMessage', `Ошибка: ${data.message || 'Не удалось загрузить пациентов'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('patientsMessage', `Ошибка подключения: ${error.message}`, 'error');
+            }
+        }
+
+        function displayPatients(patients) {
+            const container = document.getElementById('patientsList');
+
+            if (!patients || patients.length === 0) {
+                container.innerHTML = '<p>Пациенты не найдены</p>';
+                return;
+            }
+
+            let html = '<table class="table"><thead><tr><th>Имя</th><th>Фамилия</th><th>Возраст</th></tr></thead><tbody>';
+
+            patients.forEach(patient => {
+                html += `
+                    <tr>
+                        <td>${patient.name || 'Не указано'}</td>
+                        <td>${patient.surname || 'Не указана'}</td>
+                        <td>${patient.age || 'Не указан'}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // Управление лимитами
+        async function loadLimits() {
+            const tenantId = document.getElementById('limitsTenantId').value;
+            if (!tenantId) {
+                showMessage('limitsMessage', 'Введите ID тенанта', 'error');
+                return;
+            }
+
+            if (!currentToken) {
+                showMessage('limitsMessage', 'Необходимо авторизоваться', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/limits/${tenantId}`, {
+                    headers: {
+                        'X-Tenant-ID': tenantId,
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayLimits(data);
+                } else {
+                    showMessage('limitsMessage', `Ошибка: ${data.message || 'Не удалось загрузить лимиты'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('limitsMessage', `Ошибка подключения: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadUsage() {
+            const tenantId = document.getElementById('limitsTenantId').value;
+            if (!tenantId) {
+                showMessage('limitsMessage', 'Введите ID тенанта', 'error');
+                return;
+            }
+
+            if (!currentToken) {
+                showMessage('limitsMessage', 'Необходимо авторизоваться', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/limits/usage/${tenantId}`, {
+                    headers: {
+                        'X-Tenant-ID': tenantId,
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayUsage(data);
+                } else {
+                    showMessage('limitsMessage', `Ошибка: ${data.message || 'Не удалось загрузить статистику'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('limitsMessage', `Ошибка подключения: ${error.message}`, 'error');
+            }
+        }
+
+        function displayLimits(limits) {
+            const container = document.getElementById('limitsContent');
+            container.innerHTML = `
+                <h3>Текущие лимиты</h3>
+                <div class="card">
+                    <pre>${JSON.stringify(limits, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        function displayUsage(usage) {
+            const container = document.getElementById('limitsContent');
+            container.innerHTML = `
+                <h3>Статистика использования</h3>
+                <div class="card">
+                    <pre>${JSON.stringify(usage, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        // Статистика системы
+        async function loadSystemStats() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/audit/stats`);
+                const data = await response.json();
+
+                console.log('📊 Получена статистика:', data);
+
+                if (response.ok) {
+                    document.getElementById('totalTenants').textContent = data.totalTenants || 0;
+                    document.getElementById('totalPatients').textContent = data.totalPatients || 0;
+
+                    // Обновляем статус системы
+                    const statusElement = document.querySelector('.status-indicator');
+                    if (data.systemStatus === 'online') {
+                        statusElement.className = 'status-indicator status-online';
+                        statusElement.nextSibling.textContent = 'Онлайн';
+                    } else {
+                        statusElement.className = 'status-indicator status-offline';
+                        statusElement.nextSibling.textContent = 'Ошибка';
+                    }
+
+                    // Показываем последние события аудита
+                    displayRecentEvents(data.recentEvents || []);
+                } else {
+                    document.getElementById('totalTenants').textContent = 'Ошибка загрузки';
+                    document.getElementById('totalPatients').textContent = 'Ошибка загрузки';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки статистики:', error);
+                document.getElementById('totalTenants').textContent = 'Ошибка подключения';
+                document.getElementById('totalPatients').textContent = 'Ошибка подключения';
+            }
+        }
+
+        // Отображение последних событий аудита
+        function displayRecentEvents(events) {
+            const auditSection = document.getElementById('audit');
+            let eventsHtml = '';
+
+            if (events && events.length > 0) {
+                eventsHtml = `
+                    <h3>Последние события</h3>
+                    <div class="card">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Время</th>
+                                    <th>Событие</th>
+                                    <th>Тенант</th>
+                                    <th>Пользователь</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                events.forEach(event => {
+                    const date = new Date(event.timestamp).toLocaleString('ru-RU');
+                    eventsHtml += `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${event.eventType || 'Неизвестно'}</td>
+                            <td>${event.tenantId || 'Не указан'}</td>
+                            <td>${event.userId || 'Не указан'}</td>
+                        </tr>
+                    `;
+                });
+
+                eventsHtml += '</tbody></table></div>';
+            } else {
+                eventsHtml = '<p>События аудита не найдены</p>';
+            }
+
+            // Добавляем события в секцию аудита
+            const existingEvents = auditSection.querySelector('.audit-events');
+            if (existingEvents) {
+                existingEvents.remove();
+            }
+
+            const eventsDiv = document.createElement('div');
+            eventsDiv.className = 'audit-events';
+            eventsDiv.innerHTML = eventsHtml;
+            auditSection.appendChild(eventsDiv);
+        }
+
+        // Функция выхода
+        function logout() {
+            currentToken = null;
+            currentTenantId = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentTenantId');
+
+            // Очищаем поля
+            document.getElementById('tenantId').value = '';
+            document.getElementById('limitsTenantId').value = '';
+
+            showMessage('loginMessage', 'Вы вышли из системы', 'success');
+            showSection('login');
+        }
+
+        // Функция для отладки токена
+        function debugToken() {
+            console.log('Текущий токен:', currentToken);
+            console.log('Текущий Tenant ID:', currentTenantId);
+
+            if (currentToken) {
+                try {
+                    // Декодируем JWT токен (без проверки подписи)
+                    const payload = JSON.parse(atob(currentToken.split('.')[1]));
+                    console.log('Payload токена:', payload);
+                    console.log('Время истечения:', new Date(payload.exp * 1000));
+                } catch (e) {
+                    console.log('Ошибка декодирования токена:', e);
+                }
+            }
+        }
+
+        // Функция для тестирования подсчета пациентов
+        async function testPatientsCount() {
+            try {
+                console.log('🔍 Тестируем подсчет пациентов...');
+                const response = await fetch(`${API_BASE_URL}/audit/patients-count`);
+                const data = await response.json();
+
+                console.log('📊 Результат подсчета пациентов:', data);
+
+                if (response.ok) {
+                    alert(`Найдено пациентов: ${data.totalPatients}\nТенантов: ${data.totalTenants}\n\nДетали:\n${JSON.stringify(data.tenantStats, null, 2)}`);
+                } else {
+                    alert(`Ошибка: ${data.error || 'Неизвестная ошибка'}`);
+                }
+            } catch (error) {
+                console.error('❌ Ошибка тестирования:', error);
+                alert(`Ошибка подключения: ${error.message}`);
+            }
+        }
+
+        // Обработка ошибок CORS
+        window.addEventListener('error', function (e) {
+            if (e.message.includes('CORS')) {
+                console.warn('CORS ошибка. Убедитесь, что backend сервер запущен и настроен для CORS.');
+            }
+        });
+    </script>
+</body>
+
+</html>
+
+</html>
+
+</html>
+
+</html>
+
+</html>
+
+</html>
+
+</html>
