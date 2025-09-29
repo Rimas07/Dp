@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  his-app:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - DB_CONNECTION_STRING=mongodb://mongodb:27017/his
+      - ENCRYPTION_KEY=your-very-secure-encryption-key-change-this-in-production
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - his-network
+
+  mongodb:
+    image: mongo:7.0
+    container_name: his-mongodb
+    ports:
+      - '27017:27017'
+    environment:
+      - MONGO_INITDB_DATABASE=his
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - his-network
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: his-rabbitmq
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin123
+      - RABBITMQ_DEFAULT_VHOST=/
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - his-network
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+
+networks:
+  his-network:
+    driver: bridge
