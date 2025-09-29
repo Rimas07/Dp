@@ -7,13 +7,13 @@ export class DataLimit extends Document {
     tenantId: string;
 
     @Prop({ required: true, default: 1000 })
-    maxDocuments: number; // Макс. количество документов
+    maxDocuments: number;
 
-    @Prop({ required: true, default: 51200 }) // 50 MB в KB
-    maxDataSizeKB: number; // Макс. объем данных в KB
+    @Prop({ required: true, default: 51200 }) 
+    maxDataSizeKB: number; 
 
     @Prop({ required: true, default: 1000 })
-    monthlyQueries: number; // Макс. запросов в месяц
+    monthlyQueries: number; 
 }
 
 export const DataLimitSchema = SchemaFactory.createForClass(DataLimit);
