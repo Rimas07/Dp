@@ -44,7 +44,7 @@ export class HttpProxyServer {
     private setupProxy() {
         this.app.use('/mongo/*', async (req, res) => {
             try {
-                console.log('🔄 [HTTP Proxy] Перехвачен запрос:', req.method, req.path);
+                console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, req.path);
                 const authResult = await this.checkAuthentication(req);
                 if (!authResult.success || !authResult.tenantId) {
                     return res.status(401).json(authResult);
@@ -65,7 +65,7 @@ export class HttpProxyServer {
                 res.json(mongoResponse);
 
             } catch (error) {
-                console.error('❌ [HTTP Proxy] Ошибка:', error);
+                console.error('❌ [HTTP Proxy] Error:', error);
                 res.status(500).json({
                     success: false,
                     error: 'Proxy error',
@@ -85,7 +85,7 @@ export class HttpProxyServer {
             // Вариант 1: Проверяем X-Tenant-ID заголовок (для тестирования)
             const headerTenantId = req.headers['x-tenant-id'] as string;
             if (headerTenantId) {
-                console.log(`🔍 [Proxy] Используется tenantId из заголовка: ${headerTenantId}`);
+                console.log(`🔍 [Proxy] Uses tenantId from header: ${headerTenantId}`);
                 // Проверяем что тенант существует
                 const tenant = await this.tenantsService.getTenantById(headerTenantId);
                 if (tenant) {
@@ -112,7 +112,7 @@ export class HttpProxyServer {
                 const allTenants = await this.tenantsService.getAllTenants();
                 if (allTenants && allTenants.length > 0) {
                     const firstTenant = allTenants[0];
-                    console.log(`🔍 [Proxy] Используется первый тенант из БД: ${firstTenant.tenantId}`);
+                    console.log(`🔍 [Proxy] The first tenant from the database is used: ${firstTenant.tenantId}`);
                     return {
                         success: true,
                         tenantId: firstTenant.tenantId,
@@ -137,7 +137,7 @@ export class HttpProxyServer {
                     // Получаем пользователя из БД чтобы узнать его tenantId
                     const user = await this.usersService.getUserById(decoded.userId);
                     if (user && user.tenantId) {
-                        console.log(`🔍 [Proxy] Используется tenantId из JWT токена: ${user.tenantId}`);
+                        console.log(`🔍 [Proxy] The tenantId from the JWT token is used: ${user.tenantId}`);
 
                         // Проверяем валидность токена с правильным секретом
                         const secret = await this.authService.fetchAccessTokenSecretSigningKey(user.tenantId);
@@ -152,13 +152,13 @@ export class HttpProxyServer {
                     }
                 }
             } catch (jwtError) {
-                console.log(`⚠️ [Proxy] Ошибка проверки JWT токена: ${jwtError.message}`);
+                console.log(`⚠️ [Proxy] JWT token validation error: ${jwtError.message}`);
                 // Продолжаем искать другие варианты
             }
 
             return { success: false, error: 'Invalid token. Provide valid JWT token or X-Tenant-ID header' };
         } catch (error) {
-            console.error('❌ [Proxy] Ошибка аутентификации:', error);
+            console.error('❌ [Proxy] Authentication error:', error);
             return { success: false, error: `Authentication failed: ${error.message}` };
         }
     }

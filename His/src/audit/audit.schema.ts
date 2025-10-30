@@ -48,7 +48,11 @@ export class AuditEvent extends Document {
     @Prop({ type: Object })
     error?: { name: string; message: string; stack?: string };
 
-    @Prop({ enum: ['LIMIT_EXCEEDED', 'LIMIT_WARNING', 'LIMIT_UPDATED', 'USAGE_SPIKE'] })
+    @Prop({
+        enum: ['LIMIT_EXCEEDED', 'LIMIT_WARNING', 'LIMIT_UPDATED', 'USAGE_SPIKE', 'PATIENT_READ',      // ← ДОБАВИТЬ
+            'PATIENT_CREATED',   
+            'PATIENT_UPDATED',   
+            'PATIENT_DELETED'] })
     eventType?: string;
 
     @Prop({ enum: ['DOCUMENTS', 'DATA_SIZE', 'QUERIES'] })
