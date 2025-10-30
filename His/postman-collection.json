@@ -1,0 +1,446 @@
+{
+  "info": {
+    "name": "HTTP Proxy Tests",
+    "description": "Коллекция для тестирования HTTP Proxy для MongoDB",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Start HTTP Proxy",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"HTTP Proxy started\", function () {",
+              "    pm.response.to.have.status(200);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/proxy/start",
+          "host": ["{{BASE_URL}}"],
+          "path": ["proxy", "start"]
+        },
+        "description": "Запускает HTTP Proxy сервер на порту 3001"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Health Check - Main Server",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Main server is running\", function () {",
+              "    pm.response.to.have.status(200);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.include(\"running\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/proxy/health",
+          "host": ["{{BASE_URL}}"],
+          "path": ["proxy", "health"]
+        },
+        "description": "Проверка состояния основного сервера"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Health Check - Proxy Server",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Proxy server is running\", function () {",
+              "    pm.response.to.have.status(200);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.include(\"running\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{PROXY_URL}}/proxy/health",
+          "host": ["{{PROXY_URL}}"],
+          "path": ["proxy", "health"]
+        },
+        "description": "Проверка состояния HTTP Proxy сервера"
+      },
+      "response": []
+    },
+    {
+      "name": "4. MongoDB Find",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"MongoDB find operation successful\", function () {",
+              "    pm.response.to.have.status(200);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.operation).to.eql(\"find\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{TOKEN}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"find\",\n  \"filter\": {\n    \"name\": \"John\"\n  },\n  \"limit\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROXY_URL}}/mongo/patients",
+          "host": ["{{PROXY_URL}}"],
+          "path": ["mongo", "patients"]
+        },
+        "description": "Поиск документов в MongoDB через Proxy"
+      },
+      "response": []
+    },
+    {
+      "name": "5. MongoDB Insert One",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"MongoDB insert operation successful\", function () {",
+              "    pm.response.to.have.status(200);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.operation).to.eql(\"insertOne\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{TOKEN}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"insertOne\",\n  \"document\": {\n    \"name\": \"Jane Doe\",\n    \"age\": 30,\n    \"email\": \"jane@example.com\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROXY_URL}}/mongo/patients",
+          "host": ["{{PROXY_URL}}"],
+          "path": ["mongo", "patients"]
+        },
+        "description": "Создание одного документа в MongoDB через Proxy"
+      },
+      "response": []
+    },
+    {
+      "name": "6. MongoDB Insert Many",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{TOKEN}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"insertMany\",\n  \"documents\": [\n    {\n      \"name\": \"Patient 1\",\n      \"age\": 25\n    },\n    {\n      \"name\": \"Patient 2\",\n      \"age\": 35\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROXY_URL}}/mongo/patients",
+          "host": ["{{PROXY_URL}}"],
+          "path": ["mongo", "patients"]
+        },
+        "description": "Массовое создание документов в MongoDB через Proxy"
+      },
+      "response": []
+    },
+    {
+      "name": "7. MongoDB Update One",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{TOKEN}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"updateOne\",\n  \"filter\": {\n    \"name\": \"John\"\n  },\n  \"update\": {\n    \"$set\": {\n      \"age\": 31\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROXY_URL}}/mongo/patients",
+          "host": ["{{PROXY_URL}}"],
+          "path": ["mongo", "patients"]
+        },
+        "description": "Обновление одного документа в MongoDB через Proxy"
+      },
+      "response": []
+    },
+    {
+      "name": "8. MongoDB Delete One",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{TOKEN}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"deleteOne\",\n  \"filter\": {\n    \"name\": \"John\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROXY_URL}}/mongo/patients",
+          "host": ["{{PROXY_URL}}"],
+          "path": ["mongo", "patients"]
+        },
+        "description": "Удаление одного документа из MongoDB через Proxy"
+      },
+      "response": []
+    },
+    {
+      "name": "9. Test Old API",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Old API test successful\", function () {",
+              "    pm.response.to.have.status(200);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Tenant-ID",
+            "value": "{{TENANT_ID}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{TOKEN}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{BASE_URL}}/proxy/test",
+          "host": ["{{BASE_URL}}"],
+          "path": ["proxy", "test"]
+        },
+        "description": "Тестирование старого API для совместимости"
+      },
+      "response": []
+    },
+    {
+      "name": "10. Error Test - No Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Error without token\", function () {",
+              "    pm.response.to.have.status(401);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"find\",\n  \"filter\": {}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROXY_URL}}/mongo/patients",
+          "host": ["{{PROXY_URL}}"],
+          "path": ["mongo", "patients"]
+        },
+        "description": "Тест ошибки без токена авторизации"
+      },
+      "response": []
+    },
+    {
+      "name": "11. Error Test - Invalid Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Error with invalid token\", function () {",
+              "    pm.response.to.have.status(401);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid-token",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operation\": \"find\",\n  \"filter\": {}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROXY_URL}}/mongo/patients",
+          "host": ["{{PROXY_URL}}"],
+          "path": ["mongo", "patients"]
+        },
+        "description": "Тест ошибки с неверным токеном"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "PROXY_URL",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "TOKEN",
+      "value": "Bearer valid-token",
+      "type": "string"
+    },
+    {
+      "key": "TENANT_ID",
+      "value": "tenant123",
+      "type": "string"
+    }
+  ]
+}
+

@@ -9,6 +9,6 @@ import { UsersModule } from 'src/users/users.module';
   imports: [UsersModule],
   controllers: [AuthController],
   providers: [AuthService, TenantConnectionService],
-  exports: [AuthService]
+  exports: [AuthService, TenantConnectionService]
 })
-export class AuthModule {}
+export class AuthModule { }

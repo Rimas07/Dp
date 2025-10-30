@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HIS - Система управления медицинской информацией</title>
+    <title>HIS - Hospital Information System</title>
     <style>
         * {
             margin: 0;
@@ -244,6 +244,41 @@
             background: #e74c3c;
         }
 
+        .lang-switcher {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .lang-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #3498db;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: #3498db;
+        }
+
+        .lang-btn:hover {
+            background: #3498db;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .lang-btn.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .header {
+            position: relative;
+        }
+
         @media (max-width: 768px) {
             .nav {
                 flex-direction: column;
@@ -257,6 +292,12 @@
             .container {
                 padding: 10px;
             }
+
+            .lang-switcher {
+                position: static;
+                justify-content: center;
+                margin-top: 10px;
+            }
         }
     </style>
 </head>
@@ -264,92 +305,103 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏥 HIS - Система управления медицинской информацией</h1>
-            <p>Комплексная система для управления медицинскими данными и тенантами</p>
+            <div class="lang-switcher">
+                <button class="lang-btn active" onclick="changeLanguage('ru')" id="lang-ru">🇷🇺 RU</button>
+                <button class="lang-btn" onclick="changeLanguage('en')" id="lang-en">🇬🇧 EN</button>
+            </div>
+            <h1 data-i18n="header.title">🏥 HIS - Система управления медицинской информацией</h1>
+            <p data-i18n="header.subtitle">Комплексная система для управления медицинскими данными и тенантами</p>
         </div>
 
         <nav class="nav">
-            <button class="nav-btn" onclick="showSection('login')">🔐 Авторизация</button>
-            <button class="nav-btn" onclick="showSection('tenants')">🏢 Компании</button>
-            <button class="nav-btn" onclick="showSection('patients')">👥 Пациенты</button>
-            <button class="nav-btn" onclick="showSection('limits')">📊 Лимиты</button>
-            <button class="nav-btn" onclick="showSection('audit')">📋 Аудит</button>
-            <button class="nav-btn" onclick="logout()" style="background: #e74c3c;">🚪 Выйти</button>
+            <button class="nav-btn" onclick="showSection('login')" data-i18n="nav.login">🔐 Авторизация</button>
+            <button class="nav-btn" onclick="showSection('tenants')" data-i18n="nav.companies">🏢 Компании</button>
+            <button class="nav-btn" onclick="showSection('patients')" data-i18n="nav.patients">👥 Пациенты</button>
+            <button class="nav-btn" onclick="showSection('limits')" data-i18n="nav.limits">📊 Лимиты</button>
+            <button class="nav-btn" onclick="showSection('audit')" data-i18n="nav.audit">📋 Аудит</button>
+            <button class="nav-btn" onclick="logout()" style="background: #e74c3c;" data-i18n="nav.logout">🚪
+                Выйти</button>
         </nav>
 
         <div class="content">
             <!-- Секция авторизации -->
             <div id="login" class="section active">
-                <h2>🔐 Авторизация</h2>
+                <h2 data-i18n="login.title">🔐 Авторизация</h2>
                 <form id="loginForm">
                     <div class="form-group">
-                        <label for="email">Email:</label>
+                        <label for="email" data-i18n="login.email">Email:</label>
                         <input type="email" id="email" name="email" required>
                     </div>
                     <div class="form-group">
-                        <label for="password">Пароль:</label>
+                        <label for="password" data-i18n="login.password">Пароль:</label>
                         <input type="password" id="password" name="password" required>
                     </div>
-                    <button type="submit" class="btn btn-success">Войти</button>
+                    <button type="submit" class="btn btn-success" data-i18n="login.submit">Войти</button>
                 </form>
                 <div id="loginMessage"></div>
-                <button onclick="debugToken()" class="btn" style="margin-top: 10px;">🔍 Отладка токена</button>
+                <button onclick="debugToken()" class="btn" style="margin-top: 10px;" data-i18n="login.debug">🔍 Отладка
+                    токена</button>
             </div>
 
             <!-- Секция создания компании -->
             <div id="tenants" class="section">
-                <h2>🏢 Управление компаниями</h2>
+                <h2 data-i18n="tenants.title">🏢 Управление компаниями</h2>
                 <form id="createCompanyForm">
-                    <h3>Создать новую компанию</h3>
+                    <h3 data-i18n="tenants.createNew">Создать новую компанию</h3>
                     <div class="form-group">
-                        <label for="companyName">Название компании:</label>
+                        <label for="companyName" data-i18n="tenants.companyName">Название компании:</label>
                         <input type="text" id="companyName" name="companyName" required>
                     </div>
-                    <h4>Данные администратора:</h4>
+                    <h4 data-i18n="tenants.adminData">Данные администратора:</h4>
                     <div class="form-group">
-                        <label for="adminName">Имя:</label>
+                        <label for="adminName" data-i18n="tenants.adminName">Имя:</label>
                         <input type="text" id="adminName" name="adminName" required>
                     </div>
                     <div class="form-group">
-                        <label for="adminEmail">Email:</label>
+                        <label for="adminEmail" data-i18n="tenants.adminEmail">Email:</label>
                         <input type="email" id="adminEmail" name="adminEmail" required>
                     </div>
                     <div class="form-group">
-                        <label for="adminPassword">Пароль:</label>
+                        <label for="adminPassword" data-i18n="tenants.adminPassword">Пароль:</label>
                         <input type="password" id="adminPassword" name="adminPassword" required>
                     </div>
-                    <button type="submit" class="btn btn-success">Создать компанию</button>
+                    <button type="submit" class="btn btn-success" data-i18n="tenants.submit">Создать компанию</button>
                 </form>
                 <div id="companyMessage"></div>
             </div>
 
             <!-- Секция пациентов -->
             <div id="patients" class="section">
-                <h2>👥 Управление пациентами</h2>
+                <h2 data-i18n="patients.title">👥 Управление пациентами</h2>
                 <div class="form-group">
-                    <label for="tenantId">ID Тенанта:</label>
-                    <input type="text" id="tenantId" name="tenantId" placeholder="Введите ID тенанта">
+                    <label for="tenantId" data-i18n="patients.tenantId">ID Тенанта:</label>
+                    <input type="text" id="tenantId" name="tenantId"
+                        data-i18n-placeholder="patients.tenantIdPlaceholder" placeholder="Введите ID тенанта">
                 </div>
-                <button onclick="loadPatients()" class="btn">Загрузить пациентов</button>
-                <button onclick="showCreatePatientForm()" class="btn btn-success">Добавить пациента</button>
+                <button onclick="loadPatients()" class="btn" data-i18n="patients.loadBtn">Загрузить пациентов</button>
+                <button onclick="showCreatePatientForm()" class="btn btn-success" data-i18n="patients.addBtn">Добавить
+                    пациента</button>
 
                 <div id="createPatientForm" class="hidden">
-                    <h3>Добавить нового пациента</h3>
+                    <h3 data-i18n="patients.addNewTitle">Добавить нового пациента</h3>
                     <form id="patientForm">
                         <div class="form-group">
-                            <label for="patientName">Имя:</label>
+                            <label for="patientName" data-i18n="patients.name">Имя:</label>
                             <input type="text" id="patientName" name="name" required>
                         </div>
                         <div class="form-group">
-                            <label for="patientSurname">Фамилия:</label>
+                            <label for="patientSurname" data-i18n="patients.surname">Фамилия:</label>
                             <input type="text" id="patientSurname" name="surname" required>
                         </div>
                         <div class="form-group">
-                            <label for="patientAge">Возраст:</label>
-                            <input type="text" id="patientAge" name="age" required placeholder="Например: 25">
+                            <label for="patientAge" data-i18n="patients.age">Возраст:</label>
+                            <input type="text" id="patientAge" name="age" required
+                                data-i18n-placeholder="patients.agePlaceholder" placeholder="Например: 25">
                         </div>
-                        <button type="submit" class="btn btn-success">Сохранить пациента</button>
-                        <button type="button" onclick="hideCreatePatientForm()" class="btn btn-danger">Отмена</button>
+                        <button type="submit" class="btn btn-success" data-i18n="patients.saveBtn">Сохранить
+                            пациента</button>
+                        <button type="button" onclick="hideCreatePatientForm()" class="btn btn-danger"
+                            data-i18n="patients.cancelBtn">Отмена</button>
                     </form>
                 </div>
 
@@ -359,13 +411,14 @@
 
             <!-- Секция лимитов -->
             <div id="limits" class="section">
-                <h2>📊 Управление лимитами</h2>
+                <h2 data-i18n="limits.title">📊 Управление лимитами</h2>
                 <div class="form-group">
-                    <label for="limitsTenantId">ID Тенанта:</label>
-                    <input type="text" id="limitsTenantId" name="limitsTenantId" placeholder="Введите ID тенанта">
+                    <label for="limitsTenantId" data-i18n="limits.tenantId">ID Тенанта:</label>
+                    <input type="text" id="limitsTenantId" name="limitsTenantId"
+                        data-i18n-placeholder="limits.tenantIdPlaceholder" placeholder="Введите ID тенанта">
                 </div>
-                <button onclick="loadLimits()" class="btn">Загрузить лимиты</button>
-                <button onclick="loadUsage()" class="btn">Загрузить статистику</button>
+                <button onclick="loadLimits()" class="btn" data-i18n="limits.loadBtn">Загрузить лимиты</button>
+                <button onclick="loadUsage()" class="btn" data-i18n="limits.loadUsageBtn">Загрузить статистику</button>
 
                 <div id="limitsContent"></div>
                 <div id="limitsMessage"></div>
@@ -373,24 +426,27 @@
 
             <!-- Секция аудита -->
             <div id="audit" class="section">
-                <h2>📋 Журнал аудита</h2>
-                <p>Здесь отображается журнал всех действий в системе.</p>
-                <button onclick="loadSystemStats()" class="btn">🔄 Обновить статистику</button>
-                <button onclick="testPatientsCount()" class="btn">🔍 Проверить пациентов</button>
+                <h2 data-i18n="audit.title">📋 Журнал аудита</h2>
+                <p data-i18n="audit.description">Здесь отображается журнал всех действий в системе.</p>
+                <button onclick="loadSystemStats()" class="btn" data-i18n="audit.refreshBtn">🔄 Обновить
+                    статистику</button>
+                <button onclick="testPatientsCount()" class="btn" data-i18n="audit.checkPatientsBtn">🔍 Проверить
+                    пациентов</button>
                 <div class="card">
-                    <h3>Статистика системы</h3>
+                    <h3 data-i18n="audit.systemStats">Статистика системы</h3>
                     <div class="grid">
                         <div class="card">
-                            <h4>Общее количество тенантов</h4>
-                            <p id="totalTenants">Загрузка...</p>
+                            <h4 data-i18n="audit.totalTenants">Общее количество тенантов</h4>
+                            <p id="totalTenants" data-i18n="audit.loading">Загрузка...</p>
                         </div>
                         <div class="card">
-                            <h4>Общее количество пациентов</h4>
-                            <p id="totalPatients">Загрузка...</p>
+                            <h4 data-i18n="audit.totalPatients">Общее количество пациентов</h4>
+                            <p id="totalPatients" data-i18n="audit.loading">Загрузка...</p>
                         </div>
                         <div class="card">
-                            <h4>Статус системы</h4>
-                            <p><span class="status-indicator status-online"></span>Онлайн</p>
+                            <h4 data-i18n="audit.systemStatus">Статус системы</h4>
+                            <p><span class="status-indicator status-online"></span><span
+                                    data-i18n="audit.online">Онлайн</span></p>
                         </div>
                     </div>
                 </div>
@@ -399,46 +455,284 @@
     </div>
 
     <script>
-        // Конфигурация API
+        const translations = {
+            ru: {
+                header: {
+                    title: "🏥 HIS - Система управления медицинской информацией",
+                    subtitle: "Комплексная система для управления медицинскими данными и тенантами"
+                },
+                nav: {
+                    login: "🔐 Авторизация",
+                    companies: "🏢 Компании",
+                    patients: "👥 Пациенты",
+                    limits: "📊 Лимиты",
+                    audit: "📋 Аудит",
+                    logout: "🚪 Выйти"
+                },
+                login: {
+                    title: "🔐 Авторизация",
+                    email: "Email:",
+                    password: "Пароль:",
+                    submit: "Войти",
+                    debug: "🔍 Отладка токена",
+                    successMessage: "Успешная авторизация! Tenant ID:",
+                    errorMessage: "Ошибка:",
+                    alreadyLoggedIn: "Вы уже авторизованы",
+                    needAuth: "Необходимо авторизоваться для работы с системой"
+                },
+                tenants: {
+                    title: "🏢 Управление компаниями",
+                    createNew: "Создать новую компанию",
+                    companyName: "Название компании:",
+                    adminData: "Данные администратора:",
+                    adminName: "Имя:",
+                    adminEmail: "Email:",
+                    adminPassword: "Пароль:",
+                    submit: "Создать компанию",
+                    successMessage: "Компания успешно создана! ID:",
+                    errorMessage: "Ошибка:"
+                },
+                patients: {
+                    title: "👥 Управление пациентами",
+                    tenantId: "ID Тенанта:",
+                    tenantIdPlaceholder: "Введите ID тенанта",
+                    loadBtn: "Загрузить пациентов",
+                    addBtn: "Добавить пациента",
+                    addNewTitle: "Добавить нового пациента",
+                    name: "Имя:",
+                    surname: "Фамилия:",
+                    age: "Возраст:",
+                    agePlaceholder: "Например: 25",
+                    saveBtn: "Сохранить пациента",
+                    cancelBtn: "Отмена",
+                    successAdd: "Пациент успешно добавлен!",
+                    errorMessage: "Ошибка:",
+                    needTenantId: "Введите ID тенанта",
+                    needAuth: "Необходимо авторизоваться",
+                    notFound: "Пациенты не найдены",
+                    tableHeaderName: "Имя",
+                    tableHeaderSurname: "Фамилия",
+                    tableHeaderAge: "Возраст"
+                },
+                limits: {
+                    title: "📊 Управление лимитами",
+                    tenantId: "ID Тенанта:",
+                    tenantIdPlaceholder: "Введите ID тенанта",
+                    loadBtn: "Загрузить лимиты",
+                    loadUsageBtn: "Загрузить статистику",
+                    currentLimits: "Текущие лимиты",
+                    usageStats: "Статистика использования",
+                    needTenantId: "Введите ID тенанта",
+                    needAuth: "Необходимо авторизоваться",
+                    errorMessage: "Ошибка:"
+                },
+                audit: {
+                    title: "📋 Журнал аудита",
+                    description: "Здесь отображается журнал всех действий в системе.",
+                    refreshBtn: "🔄 Обновить статистику",
+                    checkPatientsBtn: "🔍 Проверить пациентов",
+                    systemStats: "Статистика системы",
+                    totalTenants: "Общее количество тенантов",
+                    totalPatients: "Общее количество пациентов",
+                    systemStatus: "Статус системы",
+                    loading: "Загрузка...",
+                    online: "Онлайн",
+                    offline: "Ошибка",
+                    recentEvents: "Последние события",
+                    time: "Время",
+                    event: "Событие",
+                    tenant: "Тенант",
+                    user: "Пользователь",
+                    noEvents: "События аудита не найдены"
+                },
+                common: {
+                    loggedOut: "Вы вышли из системы",
+                    connectionError: "Ошибка подключения:",
+                    loadingError: "Ошибка загрузки"
+                }
+            },
+            en: {
+                header: {
+                    title: "🏥 HIS - Hospital Information System",
+                    subtitle: "Comprehensive system for managing medical data and tenants"
+                },
+                nav: {
+                    login: "🔐 Login",
+                    companies: "🏢 Companies",
+                    patients: "👥 Patients",
+                    limits: "📊 Limits",
+                    audit: "📋 Audit",
+                    logout: "🚪 Logout"
+                },
+                login: {
+                    title: "🔐 Login",
+                    email: "Email:",
+                    password: "Password:",
+                    submit: "Sign In",
+                    debug: "🔍 Debug Token",
+                    successMessage: "Successful authentication! Tenant ID:",
+                    errorMessage: "Error:",
+                    alreadyLoggedIn: "You are already logged in",
+                    needAuth: "You need to log in to work with the system"
+                },
+                tenants: {
+                    title: "🏢 Company Management",
+                    createNew: "Create New Company",
+                    companyName: "Company Name:",
+                    adminData: "Administrator Data:",
+                    adminName: "Name:",
+                    adminEmail: "Email:",
+                    adminPassword: "Password:",
+                    submit: "Create Company",
+                    successMessage: "Company successfully created! ID:",
+                    errorMessage: "Error:"
+                },
+                patients: {
+                    title: "👥 Patient Management",
+                    tenantId: "Tenant ID:",
+                    tenantIdPlaceholder: "Enter tenant ID",
+                    loadBtn: "Load Patients",
+                    addBtn: "Add Patient",
+                    addNewTitle: "Add New Patient",
+                    name: "First Name:",
+                    surname: "Last Name:",
+                    age: "Age:",
+                    agePlaceholder: "Example: 25",
+                    saveBtn: "Save Patient",
+                    cancelBtn: "Cancel",
+                    successAdd: "Patient successfully added!",
+                    errorMessage: "Error:",
+                    needTenantId: "Enter tenant ID",
+                    needAuth: "You need to log in",
+                    notFound: "No patients found",
+                    tableHeaderName: "First Name",
+                    tableHeaderSurname: "Last Name",
+                    tableHeaderAge: "Age"
+                },
+                limits: {
+                    title: "📊 Limits Management",
+                    tenantId: "Tenant ID:",
+                    tenantIdPlaceholder: "Enter tenant ID",
+                    loadBtn: "Load Limits",
+                    loadUsageBtn: "Load Statistics",
+                    currentLimits: "Current Limits",
+                    usageStats: "Usage Statistics",
+                    needTenantId: "Enter tenant ID",
+                    needAuth: "You need to log in",
+                    errorMessage: "Error:"
+                },
+                audit: {
+                    title: "📋 Audit Log",
+                    description: "This displays the log of all actions in the system.",
+                    refreshBtn: "🔄 Refresh Statistics",
+                    checkPatientsBtn: "🔍 Check Patients",
+                    systemStats: "System Statistics",
+                    totalTenants: "Total Tenants",
+                    totalPatients: "Total Patients",
+                    systemStatus: "System Status",
+                    loading: "Loading...",
+                    online: "Online",
+                    offline: "Error",
+                    recentEvents: "Recent Events",
+                    time: "Time",
+                    event: "Event",
+                    tenant: "Tenant",
+                    user: "User",
+                    noEvents: "No audit events found"
+                },
+                common: {
+                    loggedOut: "You have been logged out",
+                    connectionError: "Connection error:",
+                    loadingError: "Loading error"
+                }
+            }
+        };
+
+        let currentLanguage = localStorage.getItem('language') || 'ru';
+
+        function applyTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const keys = key.split('.');
+                let translation = translations[currentLanguage];
+
+                for (const k of keys) {
+                    translation = translation[k];
+                    if (!translation) break;
+                }
+
+                if (translation) {
+                    element.textContent = translation;
+                }
+            });
+
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-i18n-placeholder');
+                const keys = key.split('.');
+                let translation = translations[currentLanguage];
+
+                for (const k of keys) {
+                    translation = translation[k];
+                    if (!translation) break;
+                }
+
+                if (translation) {
+                    element.placeholder = translation;
+                }
+            });
+
+            document.documentElement.lang = currentLanguage;
+        }
+
+        function changeLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`lang-${lang}`).classList.add('active');
+
+            applyTranslations();
+        }
         const API_BASE_URL = 'http://localhost:3000';
         let currentToken = localStorage.getItem('authToken');
         let currentTenantId = localStorage.getItem('currentTenantId');
 
-        // Инициализация
         document.addEventListener('DOMContentLoaded', function () {
+            applyTranslations();
+
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`lang-${currentLanguage}`).classList.add('active');
+
             if (currentToken) {
-                showMessage('loginMessage', 'Вы уже авторизованы', 'success');
-                // Автоматически заполняем Tenant ID если он сохранен
+                showMessage('loginMessage', translations[currentLanguage].login.alreadyLoggedIn, 'success');
                 if (currentTenantId) {
                     document.getElementById('tenantId').value = currentTenantId;
                     document.getElementById('limitsTenantId').value = currentTenantId;
                 }
             } else {
-                showMessage('loginMessage', 'Необходимо авторизоваться для работы с системой', 'error');
+                showMessage('loginMessage', translations[currentLanguage].login.needAuth, 'error');
             }
             loadSystemStats();
         });
 
-        // Навигация
         function showSection(sectionId) {
-            // Скрыть все секции
             document.querySelectorAll('.section').forEach(section => {
                 section.classList.remove('active');
             });
 
-            // Убрать активный класс с кнопок
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
 
-            // Показать выбранную секцию
             document.getElementById(sectionId).classList.add('active');
 
-            // Добавить активный класс к кнопке
             event.target.classList.add('active');
         }
 
-        // Утилиты для сообщений
         function showMessage(elementId, message, type = 'success') {
             const element = document.getElementById(elementId);
             element.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
@@ -447,7 +741,6 @@
             }, 5000);
         }
 
-        // Авторизация
         document.getElementById('loginForm').addEventListener('submit', async function (e) {
             e.preventDefault();
 
@@ -466,22 +759,21 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    currentToken = data.accessToken; // Исправлено: accessToken вместо access_token
-                    currentTenantId = data.tenantId; // Сохраняем tenantId
+                    currentToken = data.accessToken;
+                    currentTenantId = data.tenantId;
                     localStorage.setItem('authToken', currentToken);
                     localStorage.setItem('currentTenantId', currentTenantId);
-                    showMessage('loginMessage', `Успешная авторизация! Tenant ID: ${currentTenantId}`, 'success');
+                    showMessage('loginMessage', `${translations[currentLanguage].login.successMessage} ${currentTenantId}`, 'success');
                     console.log('Токен сохранен:', currentToken);
                     console.log('Tenant ID сохранен:', currentTenantId);
                 } else {
-                    showMessage('loginMessage', `Ошибка: ${data.message || 'Неверные учетные данные'}`, 'error');
+                    showMessage('loginMessage', `${translations[currentLanguage].login.errorMessage} ${data.message || 'Invalid credentials'}`, 'error');
                 }
             } catch (error) {
-                showMessage('loginMessage', `Ошибка подключения: ${error.message}`, 'error');
+                showMessage('loginMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
             }
         });
 
-        // Создание компании
         document.getElementById('createCompanyForm').addEventListener('submit', async function (e) {
             e.preventDefault();
 
@@ -506,17 +798,16 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showMessage('companyMessage', `Компания "${data.companyName}" успешно создана! ID: ${data.tenantId}`, 'success');
+                    showMessage('companyMessage', `${translations[currentLanguage].tenants.successMessage} ${data.tenantId}`, 'success');
                     document.getElementById('createCompanyForm').reset();
                 } else {
-                    showMessage('companyMessage', `Ошибка: ${data.message || 'Не удалось создать компанию'}`, 'error');
+                    showMessage('companyMessage', `${translations[currentLanguage].tenants.errorMessage} ${data.message || 'Failed to create company'}`, 'error');
                 }
             } catch (error) {
-                showMessage('companyMessage', `Ошибка подключения: ${error.message}`, 'error');
+                showMessage('companyMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
             }
         });
 
-        // Управление пациентами
         function showCreatePatientForm() {
             document.getElementById('createPatientForm').classList.remove('hidden');
         }
@@ -531,19 +822,19 @@
 
             const tenantId = document.getElementById('tenantId').value;
             if (!tenantId) {
-                showMessage('patientsMessage', 'Введите ID тенанта', 'error');
+                showMessage('patientsMessage', translations[currentLanguage].patients.needTenantId, 'error');
                 return;
             }
 
             if (!currentToken) {
-                showMessage('patientsMessage', 'Необходимо авторизоваться', 'error');
+                showMessage('patientsMessage', translations[currentLanguage].patients.needAuth, 'error');
                 return;
             }
 
             const patientData = {
                 name: document.getElementById('patientName').value,
                 surname: document.getElementById('patientSurname').value,
-                age: document.getElementById('patientAge').value // Возраст как строка согласно схеме
+                age: document.getElementById('patientAge').value
             };
 
             try {
@@ -560,27 +851,27 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showMessage('patientsMessage', 'Пациент успешно добавлен!', 'success');
+                    showMessage('patientsMessage', translations[currentLanguage].patients.successAdd, 'success');
                     document.getElementById('patientForm').reset();
                     hideCreatePatientForm();
                     loadPatients();
                 } else {
-                    showMessage('patientsMessage', `Ошибка: ${data.message || 'Не удалось добавить пациента'}`, 'error');
+                    showMessage('patientsMessage', `${translations[currentLanguage].patients.errorMessage} ${data.message || 'Failed to add patient'}`, 'error');
                 }
             } catch (error) {
-                showMessage('patientsMessage', `Ошибка подключения: ${error.message}`, 'error');
+                showMessage('patientsMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
             }
         });
 
         async function loadPatients() {
             const tenantId = document.getElementById('tenantId').value;
             if (!tenantId) {
-                showMessage('patientsMessage', 'Введите ID тенанта', 'error');
+                showMessage('patientsMessage', translations[currentLanguage].patients.needTenantId, 'error');
                 return;
             }
 
             if (!currentToken) {
-                showMessage('patientsMessage', 'Необходимо авторизоваться', 'error');
+                showMessage('patientsMessage', translations[currentLanguage].patients.needAuth, 'error');
                 return;
             }
 
@@ -598,10 +889,10 @@
                 if (response.ok) {
                     displayPatients(data);
                 } else {
-                    showMessage('patientsMessage', `Ошибка: ${data.message || 'Не удалось загрузить пациентов'}`, 'error');
+                    showMessage('patientsMessage', `${translations[currentLanguage].patients.errorMessage} ${data.message || 'Failed to load patients'}`, 'error');
                 }
             } catch (error) {
-                showMessage('patientsMessage', `Ошибка подключения: ${error.message}`, 'error');
+                showMessage('patientsMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
             }
         }
 
@@ -609,18 +900,18 @@
             const container = document.getElementById('patientsList');
 
             if (!patients || patients.length === 0) {
-                container.innerHTML = '<p>Пациенты не найдены</p>';
+                container.innerHTML = `<p>${translations[currentLanguage].patients.notFound}</p>`;
                 return;
             }
 
-            let html = '<table class="table"><thead><tr><th>Имя</th><th>Фамилия</th><th>Возраст</th></tr></thead><tbody>';
+            let html = `<table class="table"><thead><tr><th>${translations[currentLanguage].patients.tableHeaderName}</th><th>${translations[currentLanguage].patients.tableHeaderSurname}</th><th>${translations[currentLanguage].patients.tableHeaderAge}</th></tr></thead><tbody>`;
 
             patients.forEach(patient => {
                 html += `
                     <tr>
-                        <td>${patient.name || 'Не указано'}</td>
-                        <td>${patient.surname || 'Не указана'}</td>
-                        <td>${patient.age || 'Не указан'}</td>
+                        <td>${patient.name || 'N/A'}</td>
+                        <td>${patient.surname || 'N/A'}</td>
+                        <td>${patient.age || 'N/A'}</td>
                     </tr>
                 `;
             });
@@ -629,16 +920,15 @@
             container.innerHTML = html;
         }
 
-        // Управление лимитами
         async function loadLimits() {
             const tenantId = document.getElementById('limitsTenantId').value;
             if (!tenantId) {
-                showMessage('limitsMessage', 'Введите ID тенанта', 'error');
+                showMessage('limitsMessage', translations[currentLanguage].limits.needTenantId, 'error');
                 return;
             }
 
             if (!currentToken) {
-                showMessage('limitsMessage', 'Необходимо авторизоваться', 'error');
+                showMessage('limitsMessage', translations[currentLanguage].limits.needAuth, 'error');
                 return;
             }
 
@@ -655,22 +945,22 @@
                 if (response.ok) {
                     displayLimits(data);
                 } else {
-                    showMessage('limitsMessage', `Ошибка: ${data.message || 'Не удалось загрузить лимиты'}`, 'error');
+                    showMessage('limitsMessage', `${translations[currentLanguage].limits.errorMessage} ${data.message || 'Failed to load limits'}`, 'error');
                 }
             } catch (error) {
-                showMessage('limitsMessage', `Ошибка подключения: ${error.message}`, 'error');
+                showMessage('limitsMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
             }
         }
 
         async function loadUsage() {
             const tenantId = document.getElementById('limitsTenantId').value;
             if (!tenantId) {
-                showMessage('limitsMessage', 'Введите ID тенанта', 'error');
+                showMessage('limitsMessage', translations[currentLanguage].limits.needTenantId, 'error');
                 return;
             }
 
             if (!currentToken) {
-                showMessage('limitsMessage', 'Необходимо авторизоваться', 'error');
+                showMessage('limitsMessage', translations[currentLanguage].limits.needAuth, 'error');
                 return;
             }
 
@@ -687,17 +977,17 @@
                 if (response.ok) {
                     displayUsage(data);
                 } else {
-                    showMessage('limitsMessage', `Ошибка: ${data.message || 'Не удалось загрузить статистику'}`, 'error');
+                    showMessage('limitsMessage', `${translations[currentLanguage].limits.errorMessage} ${data.message || 'Failed to load statistics'}`, 'error');
                 }
             } catch (error) {
-                showMessage('limitsMessage', `Ошибка подключения: ${error.message}`, 'error');
+                showMessage('limitsMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
             }
         }
 
         function displayLimits(limits) {
             const container = document.getElementById('limitsContent');
             container.innerHTML = `
-                <h3>Текущие лимиты</h3>
+                <h3>${translations[currentLanguage].limits.currentLimits}</h3>
                 <div class="card">
                     <pre>${JSON.stringify(limits, null, 2)}</pre>
                 </div>
@@ -707,14 +997,13 @@
         function displayUsage(usage) {
             const container = document.getElementById('limitsContent');
             container.innerHTML = `
-                <h3>Статистика использования</h3>
+                <h3>${translations[currentLanguage].limits.usageStats}</h3>
                 <div class="card">
                     <pre>${JSON.stringify(usage, null, 2)}</pre>
                 </div>
             `;
         }
 
-        // Статистика системы
         async function loadSystemStats() {
             try {
                 const response = await fetch(`${API_BASE_URL}/audit/stats`);
@@ -726,68 +1015,64 @@
                     document.getElementById('totalTenants').textContent = data.totalTenants || 0;
                     document.getElementById('totalPatients').textContent = data.totalPatients || 0;
 
-                    // Обновляем статус системы
                     const statusElement = document.querySelector('.status-indicator');
                     if (data.systemStatus === 'online') {
                         statusElement.className = 'status-indicator status-online';
-                        statusElement.nextSibling.textContent = 'Онлайн';
+                        statusElement.nextSibling.textContent = translations[currentLanguage].audit.online;
                     } else {
                         statusElement.className = 'status-indicator status-offline';
-                        statusElement.nextSibling.textContent = 'Ошибка';
+                        statusElement.nextSibling.textContent = translations[currentLanguage].audit.offline;
                     }
 
-                    // Показываем последние события аудита
                     displayRecentEvents(data.recentEvents || []);
                 } else {
-                    document.getElementById('totalTenants').textContent = 'Ошибка загрузки';
-                    document.getElementById('totalPatients').textContent = 'Ошибка загрузки';
+                    document.getElementById('totalTenants').textContent = translations[currentLanguage].common.loadingError;
+                    document.getElementById('totalPatients').textContent = translations[currentLanguage].common.loadingError;
                 }
             } catch (error) {
                 console.error('Ошибка загрузки статистики:', error);
-                document.getElementById('totalTenants').textContent = 'Ошибка подключения';
-                document.getElementById('totalPatients').textContent = 'Ошибка подключения';
+                document.getElementById('totalTenants').textContent = translations[currentLanguage].common.loadingError;
+                document.getElementById('totalPatients').textContent = translations[currentLanguage].common.loadingError;
             }
         }
 
-        // Отображение последних событий аудита
         function displayRecentEvents(events) {
             const auditSection = document.getElementById('audit');
             let eventsHtml = '';
 
             if (events && events.length > 0) {
                 eventsHtml = `
-                    <h3>Последние события</h3>
+                    <h3>${translations[currentLanguage].audit.recentEvents}</h3>
                     <div class="card">
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>Время</th>
-                                    <th>Событие</th>
-                                    <th>Тенант</th>
-                                    <th>Пользователь</th>
+                                    <th>${translations[currentLanguage].audit.time}</th>
+                                    <th>${translations[currentLanguage].audit.event}</th>
+                                    <th>${translations[currentLanguage].audit.tenant}</th>
+                                    <th>${translations[currentLanguage].audit.user}</th>
                                 </tr>
                             </thead>
                             <tbody>
                 `;
 
                 events.forEach(event => {
-                    const date = new Date(event.timestamp).toLocaleString('ru-RU');
+                    const date = new Date(event.timestamp).toLocaleString(currentLanguage === 'ru' ? 'ru-RU' : 'en-US');
                     eventsHtml += `
                         <tr>
                             <td>${date}</td>
-                            <td>${event.eventType || 'Неизвестно'}</td>
-                            <td>${event.tenantId || 'Не указан'}</td>
-                            <td>${event.userId || 'Не указан'}</td>
+                            <td>${event.eventType || 'Unknown'}</td>
+                            <td>${event.tenantId || 'N/A'}</td>
+                            <td>${event.userId || 'N/A'}</td>
                         </tr>
                     `;
                 });
 
                 eventsHtml += '</tbody></table></div>';
             } else {
-                eventsHtml = '<p>События аудита не найдены</p>';
+                eventsHtml = `<p>${translations[currentLanguage].audit.noEvents}</p>`;
             }
 
-            // Добавляем события в секцию аудита
             const existingEvents = auditSection.querySelector('.audit-events');
             if (existingEvents) {
                 existingEvents.remove();
@@ -799,29 +1084,25 @@
             auditSection.appendChild(eventsDiv);
         }
 
-        // Функция выхода
         function logout() {
             currentToken = null;
             currentTenantId = null;
             localStorage.removeItem('authToken');
             localStorage.removeItem('currentTenantId');
 
-            // Очищаем поля
             document.getElementById('tenantId').value = '';
             document.getElementById('limitsTenantId').value = '';
 
-            showMessage('loginMessage', 'Вы вышли из системы', 'success');
+            showMessage('loginMessage', translations[currentLanguage].common.loggedOut, 'success');
             showSection('login');
         }
 
-        // Функция для отладки токена
         function debugToken() {
             console.log('Текущий токен:', currentToken);
             console.log('Текущий Tenant ID:', currentTenantId);
 
             if (currentToken) {
                 try {
-                    // Декодируем JWT токен (без проверки подписи)
                     const payload = JSON.parse(atob(currentToken.split('.')[1]));
                     console.log('Payload токена:', payload);
                     console.log('Время истечения:', new Date(payload.exp * 1000));
@@ -831,7 +1112,6 @@
             }
         }
 
-        // Функция для тестирования подсчета пациентов
         async function testPatientsCount() {
             try {
                 console.log('🔍 Тестируем подсчет пациентов...');
@@ -851,7 +1131,6 @@
             }
         }
 
-        // Обработка ошибок CORS
         window.addEventListener('error', function (e) {
             if (e.message.includes('CORS')) {
                 console.warn('CORS ошибка. Убедитесь, что backend сервер запущен и настроен для CORS.');

@@ -16,7 +16,6 @@ export class AuditEvent {
     responseBody?: unknown;
     error?: { name: string; message: string; stack?: string };
 
-    // Новые поля для аудита лимитов
     eventType?: 'LIMIT_EXCEEDED' | 'LIMIT_WARNING' | 'LIMIT_UPDATED' | 'USAGE_SPIKE' | 'PATIENT_READ';
     limitType?: 'DOCUMENTS' | 'DATA_SIZE' | 'QUERIES';
     limitData?: {
@@ -28,7 +27,6 @@ export class AuditEvent {
     metadata?: Record<string, any>;
 }
 
-// Специальные события для лимитов
 export interface LimitViolationEvent extends AuditEvent {
     eventType: 'LIMIT_EXCEEDED';
     limitType: 'DOCUMENTS' | 'DATA_SIZE' | 'QUERIES';

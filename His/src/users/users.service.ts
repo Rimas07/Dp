@@ -21,6 +21,10 @@ export class UsersService {
         return this.UserModel.findOne({ email })
     }
 
+    async getUserById(userId: string) {
+        return this.UserModel.findById(userId)
+    }
+
     async createUser(user: UserDto, tenantId: string) {
         user.password = await bcrypt.hash(user.password.toString(), 10)
         return this.UserModel.create({ ...user, tenantId })

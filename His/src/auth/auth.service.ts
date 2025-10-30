@@ -132,5 +132,39 @@ export class AuthService {
         return secretKey;
     }
 
+    async validateToken(token: string) {
+        try {
+            const decodedToken = this.jwtService.decode(token) as any;
+            if (!decodedToken || !decodedToken.userId) {
+                return { success: false, error: 'Invalid token format' };
+            }
+            const user = await this.usersService.getUserById(decodedToken.userId);
+            if (!user) {
+                return { success: false, error: 'User not found' };
+            }
+
+            const secretKey = await this.fetchAccessTokenSecretSigningKey(user.tenantId);
+            const verifiedToken = this.jwtService.verify(token, { secret: secretKey });
+
+            return {
+                success: true,
+                tenantId: user.tenantId,
+                userId: (user._id as any).toString(),
+                user: {
+                    _id: (user._id as any).toString(),
+                    email: user.email,
+                    name: user.name,
+                    tenantId: user.tenantId
+                }
+            };
+        } catch (error) {
+            console.error('JWT validation error:', error.message);
+            return {
+                success: false,
+                error: error.message.includes('expired') ? 'Token expired' : 'Invalid token'
+            };
+        }
+    }
+
 
 }

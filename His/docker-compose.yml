@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Основное приложение HIS
   his-app:
     build: .
     ports:
@@ -14,7 +15,9 @@ services:
       - rabbitmq
     networks:
       - his-network
+    restart: unless-stopped
 
+  # MongoDB для хранения данных
   mongodb:
     image: mongo:7.0
     container_name: his-mongodb
@@ -28,6 +31,7 @@ services:
       - his-network
     restart: unless-stopped
 
+  # RabbitMQ для микросервисов и аудита
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: his-rabbitmq
@@ -43,6 +47,39 @@ services:
     networks:
       - his-network
     restart: unless-stopped
+
+  # Producer сервис (опционально)
+  producer:
+    build:
+      context: ../producer
+      dockerfile: Dockerfile
+    ports:
+      - '3001:3000'
+    environment:
+      - PORT=3000
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - his-network
+    restart: unless-stopped
+    profiles:
+      - microservices # Запускается только при указании профиля
+
+  # Consumer сервис (опционально)
+  consumer:
+    build:
+      context: ../consumer
+      dockerfile: Dockerfile
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - his-network
+    restart: unless-stopped
+    profiles:
+      - microservices # Запускается только при указании профиля
 
 volumes:
   mongo-data:

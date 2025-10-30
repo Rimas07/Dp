@@ -39,15 +39,11 @@ export class AuditController {
     @Get('stats')
     async getSystemStats() {
         try {
-            // Получаем общее количество тенантов
             const totalTenants = await this.tenantsService.getAllTenants();
-
-            // Подсчитываем общее количество пациентов во всех тенантах
             let totalPatients = 0;
             for (const tenant of totalTenants) {
                 try {
                     const tenantDb = this.connection.useDb(`tenant_${tenant.tenantId}`);
-                    // Создаем модель с правильной схемой
                     const PatientModel = tenantDb.model(Patient.name, PatientSchema);
                     const patientCount = await PatientModel.countDocuments();
                     totalPatients += patientCount;
@@ -57,10 +53,7 @@ export class AuditController {
                 }
             }
 
-            // Получаем общее количество аудит событий
             const totalAuditEvents = await this.auditModel.countDocuments();
-
-            // Получаем последние 10 аудит событий
             const recentEvents = await this.auditModel
                 .find()
                 .sort({ timestamp: -1 })
