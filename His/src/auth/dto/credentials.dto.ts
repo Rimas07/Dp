@@ -1,7 +1,6 @@
-import { IsEmail, IsInt, IsNotEmpty, Min, Max } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, Matches } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 
 export class LoginCredentialsDto {
     @ApiProperty({
@@ -9,21 +8,25 @@ export class LoginCredentialsDto {
         example: 'admin@hospital1.ru',
     })
     @IsNotEmpty({ message: 'Email required' })
-    @IsEmail({}, { message: 'invalid email' })
+    @IsEmail({}, { message: 'Invalid email' })
     email: string;
 
     @ApiProperty({
-        description: 'User password',
-        example: 123456,
-        minimum: 100000,
-        maximum: 999999999,
+        description: 'User password (min 8 chars, must contain uppercase, lowercase, number and special character)',
+        example: 'SecurePass123!',
+        minLength: 8,
+        pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])',
     })
-    @Type(() => Number)
-    @IsNotEmpty({ message: 'password required' })
-    @IsInt({ message: 'Password must be number' })
-    @Min(100000, { message: 'Password must be at least 100000' })
-    @Max(999999999, { message: 'Password must not exceed 999999999' })
-    password: number;
+    @IsNotEmpty({ message: 'Password required' })
+    @IsString({ message: 'Password must be string' })
+    @MinLength(8, { message: 'Password must be at least 8 characters' })
+    @Matches(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])/,
+        {
+            message: 'Password must contain at least: 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character (!@#$%^&*)'
+        }
+    )
+    password: string;
 }
 
 export class UpdateCredentialsDto extends PartialType(LoginCredentialsDto) { }
