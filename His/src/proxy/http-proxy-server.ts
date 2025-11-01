@@ -196,16 +196,45 @@ export class HttpProxyServer {
             const operation = this.detectOperation(req);
             const dataSize = this.calculateDataSize(req);
 
+            // ✅ Создаем context для audit logging
+            const context = {
+                requestId: `proxy-${Date.now()}`,
+                method: req.method,
+                endpoint: req.path,
+                ipAddress: req.ip,
+                userAgent: req.headers['user-agent']
+            };
+
             console.log('🔍 [Limits] Проверка лимитов:', {
                 tenantId,
                 operation: operation.type,
                 documents: operation.documents,
                 dataSizeKB: dataSize
             });
-            await this.limitsService.checkDocumentsLimit(tenantId, operation.documents);
-            await this.limitsService.checkDataSizeLimit(tenantId, dataSize);
-            await this.limitsService.checkQueriesLimit(tenantId);
 
+            // ✅ Передаем context в каждый check метод
+            if (operation.documents > 0) {
+                await this.limitsService.checkDocumentsLimit(
+                    tenantId,
+                    operation.documents,
+                    context  // ← ДОБАВИТЬ!
+                );
+            }
+
+            if (dataSize > 0) {
+                await this.limitsService.checkDataSizeLimit(
+                    tenantId,
+                    dataSize,
+                    context  // ← ДОБАВИТЬ!
+                );
+            }
+
+            await this.limitsService.checkQueriesLimit(
+                tenantId,
+                context  // ← ДОБАВИТЬ!
+            );
+
+            console.log('✅ [Limits] Все проверки пройдены');
             return { success: true };
         } catch (error) {
             console.log('❌ [Limits] Лимит превышен:', error.message);

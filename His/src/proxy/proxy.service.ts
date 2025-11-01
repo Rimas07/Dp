@@ -39,7 +39,7 @@ export class ProxyService {
 
     public startProxyServer(port: number = 3001) {
         this.httpProxyServer.start(port);
-        console.log('🚀 [ProxyService] HTTP Proxy сервер запущен!');
+        console.log('🚀 [ProxyService] HTTP Proxy server is running!');
     }
 
     public getProxyApp() {
@@ -106,7 +106,7 @@ export class ProxyService {
 
     public async processRequest(req: any) {
         try {
-            console.log('🔍 [ProxyService] Обработка запроса через старый API');
+            console.log('🔍 [ProxyService] Processing a request via the old API');
             const authResult = await this.validateToken(
                 req.headers.authorization?.replace('Bearer ', '') || ''
             );
@@ -149,7 +149,7 @@ export class ProxyService {
             };
 
         } catch (error) {
-            console.error('❌ [ProxyService] Ошибка обработки запроса:', error);
+            console.error('❌ [ProxyService] Error processing request:', error);
             throw error;
         }
     }

@@ -32,6 +32,12 @@ export class TenantAuthenticationGuard implements CanActivate {
         if (!token) throw new UnauthorizedException('Missing access token');
         const userId = await this.checkTokenValidity(token, tenantId);
 
+
+        const payload: any = this.jwtService.decode(token);
+        if (payload.tenantId && payload.tenantId !== tenantId) {
+            throw new UnauthorizedException('Token tenant mismatch');
+        }
+
         //Attach user data on request
         request.userInfo = {
             id: userId,
@@ -50,6 +56,7 @@ export class TenantAuthenticationGuard implements CanActivate {
             );
             const payload = await this.jwtService.verify(token, {
                 secret,
+                algorithms: ['HS256'],
             });
             return payload.userId;
         } catch (e) {

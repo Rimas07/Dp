@@ -10,16 +10,16 @@ export class ProxyController {
     constructor(private readonly proxyService: ProxyService) { }
 
     /**
-     * Health check для Proxy Service
+     * Health check 
      */
     @Get('health')
     @ApiOperation({
         summary: 'Proxy health check',
-        description: 'Проверка состояния Data-Limiting MongoDB Proxy'
+        description: 'Checking the Status of the  Proxy'
     })
     @ApiResponse({
         status: 200,
-        description: 'Proxy работает нормально'
+        description: 'The proxy is working fine.'
     })
     health() {
         return this.proxyService.health();
@@ -32,13 +32,13 @@ export class ProxyController {
     })
     async proxyToMongoDB(@Req() req: Request, @Res() res: Response, @Body() body: any) {
         try {
-            console.log('🔄 [ProxyController] Перехвачен запрос к MongoDB:', req.method, req.path);
+            console.log('🔄 [ProxyController] Intercepted request to MongoDB:', req.method, req.path);
 
             const proxyApp = this.proxyService.getProxyApp();
             proxyApp(req, res);
 
         } catch (error) {
-            console.error('❌ [ProxyController] Ошибка:', error);
+            console.error('❌ [ProxyController] error:', error);
             res.status(500).json({
                 success: false,
                 error: 'Proxy controller error',
@@ -57,22 +57,22 @@ export class ProxyController {
     @Post('test')
     @ApiOperation({
         summary: 'Test Proxy validation',
-        description: 'Тестовая функция для проверки работы Data-Limiting Proxy'
+        description: 'Test function for checking the operation of Data-Limiting Proxy'
     })
     @ApiResponse({
         status: 200,
-        description: 'Проверка прошла успешно'
+        description: 'the test was successful'
     })
     async testProxy(@Req() req: Request) {
         try {
             console.log('\n═══════════════════════════════════════');
-            console.log('🔍 ТЕСТ ПРОКСИ НАЧАЛСЯ');
+            console.log('🔍 THE PROXY TEST HAS STARTEDЯ');
             console.log('═══════════════════════════════════════\n');
 
             const result = await this.proxyService.processRequest(req);
 
             console.log('\n═══════════════════════════════════════');
-            console.log('✅ ТЕСТ ПРОКСИ ЗАВЕРШЁН УСПЕШНО');
+            console.log('✅ PROXY TEST COMPLETED SUCCESSFULLY');
             console.log('═══════════════════════════════════════\n');
 
             return {
@@ -83,7 +83,7 @@ export class ProxyController {
             };
         } catch (error) {
             console.log('\n═══════════════════════════════════════');
-            console.log('❌ ТЕСТ ПРОКСИ ПРОВАЛЕН');
+            console.log('❌ PROXY TEST FAILED');
             console.log('═══════════════════════════════════════\n');
 
             return {

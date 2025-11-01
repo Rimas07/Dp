@@ -65,7 +65,8 @@ export class AuthService {
 
         const accessToken = await this.jwtService.sign(
             { userId: user._id },
-            { secret: secretKey, expiresIn: '10h' }
+            { secret: secretKey, expiresIn: '1h' }// expiration time token was changed from 10h to 1h for security concerns
+            //to avoid
         );
         return { accessToken, tenantId: user.tenantId }
         //     // Return user info and token

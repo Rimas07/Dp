@@ -1,30 +1,23 @@
-
-
-✅ Health check (service status monitoring)  start
-
-✅ Create a proxy myself, as it currently works as an application-level proxy
-I plan to create a simple proxy
-To be done
-✅ Role model (admin vs. user) in development
-
-✅ Patient search (by first name, last name, age) To be done
-
-✅ Change history (who, when, and what was changed) To be done
-
-✅ Data encryption (additional privacy) How to do this?  Is this necessary?
-
-✅Jwt payload?
-✅ Caching? no 
-✅mongodb atlas or google cloud?google cloud?
+IMPORTANT
+✅mongodb atlas or google cloud? both of them will work
 ✅Metrics and statistics? yes
-Performance/Load?
+Performance/Load?yes
+✅Jwt payload?
 
 
 
+necessary
+✅ Role model (admin vs. user) in development
+✅ Patient search (by first name, last name, age) To be done
+✅ Change history (who, when, and what was changed) To be done
+✅ Data encryption (additional privacy) How to do this?  Is this necessary?
+✅ Caching? no, not required right now
 
-
+DONE
 ............
 ✅ Validated data (age is not negative, email is correct) Done
 ✅ Swagger documentation (nice API description) Done
 ✅ Limit notifications (80% warnings)done 
 ✅ Simple frontend (web interface for management) Done but needs to be redesigned
+✅Create a proxy , as it currently works as an application-level proxy
+DONE

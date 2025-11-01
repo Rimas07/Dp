@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, ForbiddenException, Inject } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { DataLimit, DataLimitSchema } from './limits.schema';
@@ -16,6 +16,17 @@ export interface RequestContext {
     method?: string;
 }
 
+/**
+ * 🔒 LIMITS SERVICE with ATOMIC OPERATIONS
+ * 
+ * ✅ ИСПРАВЛЕНО: Race Conditions устранены через atomic MongoDB operations
+ * 
+ * Основные улучшения:
+ * 1. checkDocumentsLimit - атомарная проверка + обновление через findOneAndUpdate
+ * 2. checkDataSizeLimit - то же самое для размера данных
+ * 3. checkQueriesLimit - атомарное обновление счетчика запросов
+ * 4. Валидация отрицательных значений в updateUsage
+ */
 @Injectable()
 export class LimitsService {
     private readonly limitsModel;
@@ -29,156 +40,251 @@ export class LimitsService {
         this.usageModel = this.connection.model(DataUsage.name, DataUsageSchema);
     }
 
+    /**
+     * ✅ ИСПРАВЛЕНО: Проверка лимита документов через ATOMIC OPERATION
+     * 
+     * СТАРАЯ ПРОБЛЕМА:
+     * - Проверка и обновление были раздельными операциями
+     * - Два параллельных запроса могли обойти лимит
+     * 
+     * НОВОЕ РЕШЕНИЕ:
+     * - Используем findOneAndUpdate с условием
+     * - MongoDB гарантирует атомарность
+     * - Невозможно обойти лимит параллельными запросами
+     * 
+     * @param tenantId - ID tenant'а
+     * @param incomingDocsCount - Количество добавляемых документов
+     * @param context - Контекст запроса для audit
+     */
     async checkDocumentsLimit(
         tenantId: string,
         incomingDocsCount: number = 1,
         context?: RequestContext
     ): Promise<void> {
+        // Валидация входных данных
+        if (incomingDocsCount < 0) {
+            throw new ForbiddenException('Document count cannot be negative');
+        }
+
+        if (incomingDocsCount > 1000) {
+            throw new ForbiddenException('Cannot add more than 1000 documents at once');
+        }
+
         const limit = await this.limitsModel.findOne({ tenantId }).exec();
-        const usage = await this.usageModel.findOne({ tenantId }).exec() ||
-            await this.usageModel.create({ tenantId });
 
         if (!limit) {
+            // Если нет лимитов - пропускаем проверку
             return;
         }
 
-        const newTotal = usage.documentsCount + incomingDocsCount;
-        const percentage = Math.round((newTotal / limit.maxDocuments) * 100);
+        // ✅ ATOMIC OPERATION: Проверка + обновление за одну операцию
+        // MongoDB гарантирует что это выполнится атомарно
+        const updatedUsage = await this.usageModel.findOneAndUpdate(
+            {
+                tenantId,
+                // УСЛОВИЕ: Можно ли добавить документы?
+                documentsCount: { $lte: limit.maxDocuments - incomingDocsCount }
+            },
+            {
+                // ДЕЙСТВИЕ: Увеличить счетчик
+                $inc: { documentsCount: incomingDocsCount }
+            },
+            {
+                new: true,  // Вернуть обновленный документ
+                upsert: false  // Не создавать если не существует
+            }
+        ).exec();
 
-        if (newTotal >= limit.maxDocuments * 0.9 && usage.documentsCount < limit.maxDocuments * 0.9) {
-            await this.emitLimitWarning(tenantId, 'DOCUMENTS', {
-                currentValue: usage.documentsCount,
-                limitValue: limit.maxDocuments,
-                percentage: Math.round((usage.documentsCount / limit.maxDocuments) * 100)
-            }, context);
-        }
+        // Если updatedUsage === null, значит условие не выполнилось (лимит превышен)
+        if (!updatedUsage) {
+            // Получаем текущее использование для деталей ошибки
+            const currentUsage = await this.usageModel.findOne({ tenantId }).exec() ||
+                await this.usageModel.create({ tenantId });
 
-        if (newTotal > limit.maxDocuments) {
+            const percentage = Math.round(
+                ((currentUsage.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
+            );
+
+            // Логируем нарушение лимита
             await this.emitLimitViolation(tenantId, 'DOCUMENTS', {
-                currentValue: usage.documentsCount,
+                currentValue: currentUsage.documentsCount,
                 limitValue: limit.maxDocuments,
                 attemptedValue: incomingDocsCount,
-                percentage: percentage
+                percentage
             }, context);
 
             throw new ForbiddenException({
-                message: `Document limit exceeded. Current: ${usage.documentsCount}, Limit: ${limit.maxDocuments}, Attempted to add: ${incomingDocsCount}`,
+                message: `Document limit exceeded. Current: ${currentUsage.documentsCount}, Limit: ${limit.maxDocuments}, Attempted to add: ${incomingDocsCount}`,
                 error: 'DOCUMENT_LIMIT_EXCEEDED',
                 details: {
-                    current: usage.documentsCount,
+                    current: currentUsage.documentsCount,
                     limit: limit.maxDocuments,
                     attempted: incomingDocsCount,
-                    percentage: percentage
+                    percentage
                 }
             });
         }
+
+        // Проверка на 90% для warning
+        const percentage = Math.round((updatedUsage.documentsCount / limit.maxDocuments) * 100);
+
+        if (percentage >= 90 && (updatedUsage.documentsCount - incomingDocsCount) < limit.maxDocuments * 0.9) {
+            await this.emitLimitWarning(tenantId, 'DOCUMENTS', {
+                currentValue: updatedUsage.documentsCount,
+                limitValue: limit.maxDocuments,
+                percentage
+            }, context);
+        }
     }
 
-
+    /**
+     * ✅ ИСПРАВЛЕНО: Проверка лимита размера данных через ATOMIC OPERATION
+     * 
+     * Аналогично checkDocumentsLimit, но для размера данных в KB
+     */
     async checkDataSizeLimit(
         tenantId: string,
         incomingDataSizeKB: number,
         context?: RequestContext
     ): Promise<void> {
-        console.log('🔍 [DEBUG] checkDataSizeLimit - START');
-        console.log('🔍 [DEBUG] Tenant:', tenantId, 'Incoming size:', incomingDataSizeKB);
+        // Валидация входных данных
+        if (incomingDataSizeKB < 0) {
+            throw new ForbiddenException('Data size cannot be negative');
+        }
+
+        if (incomingDataSizeKB > 10240) {  // 10MB max за раз
+            throw new ForbiddenException('Cannot add more than 10MB at once');
+        }
 
         const limit = await this.limitsModel.findOne({ tenantId }).exec();
-        const usage = await this.usageModel.findOne({ tenantId }).exec() ||
-            await this.usageModel.create({ tenantId });
-
-        console.log('🔍 [DEBUG] Limit from DB:', limit);
-        console.log('🔍 [DEBUG] Usage from DB:', usage);
 
         if (!limit) {
-            console.log('🔍 [DEBUG] No limits set, skipping check');
             return;
         }
 
-        const newTotal = usage.dataSizeKB + incomingDataSizeKB;
-        const percentage = Math.round((newTotal / limit.maxDataSizeKB) * 100);
+        // ✅ ATOMIC OPERATION
+        const updatedUsage = await this.usageModel.findOneAndUpdate(
+            {
+                tenantId,
+                dataSizeKB: { $lte: limit.maxDataSizeKB - incomingDataSizeKB }
+            },
+            {
+                $inc: { dataSizeKB: incomingDataSizeKB }
+            },
+            {
+                new: true,
+                upsert: false
+            }
+        ).exec();
 
-        console.log('🔍 [DEBUG] Calculation:');
-        console.log('🔍 [DEBUG] - Current usage:', usage.dataSizeKB, 'KB');
-        console.log('🔍 [DEBUG] - Incoming size:', incomingDataSizeKB, 'KB');
-        console.log('🔍 [DEBUG] - New total:', newTotal, 'KB');
-        console.log('🔍 [DEBUG] - Limit:', limit.maxDataSizeKB, 'KB');
-        console.log('🔍 [DEBUG] - Percentage:', percentage, '%');
+        if (!updatedUsage) {
+            const currentUsage = await this.usageModel.findOne({ tenantId }).exec() ||
+                await this.usageModel.create({ tenantId });
 
-        if (newTotal >= limit.maxDataSizeKB * 0.9 && usage.dataSizeKB < limit.maxDataSizeKB * 0.9) {
-            console.log('🔍 [DEBUG] ⚠️  Emitting limit warning (90%)');
-            await this.emitLimitWarning(tenantId, 'DATA_SIZE', {
-                currentValue: usage.dataSizeKB,
-                limitValue: limit.maxDataSizeKB,
-                percentage: Math.round((usage.dataSizeKB / limit.maxDataSizeKB) * 100)
-            }, context);
-        }
+            const percentage = Math.round(
+                ((currentUsage.dataSizeKB + incomingDataSizeKB) / limit.maxDataSizeKB) * 100
+            );
 
-        if (newTotal > limit.maxDataSizeKB) {
-            console.log('🔍 [DEBUG] ❌ LIMIT EXCEEDED! Throwing exception');
             await this.emitLimitViolation(tenantId, 'DATA_SIZE', {
-                currentValue: usage.dataSizeKB,
+                currentValue: currentUsage.dataSizeKB,
                 limitValue: limit.maxDataSizeKB,
                 attemptedValue: incomingDataSizeKB,
-                percentage: percentage
+                percentage
             }, context);
 
             throw new ForbiddenException({
-                message: `Data size limit exceeded. Current: ${usage.dataSizeKB}KB, Limit: ${limit.maxDataSizeKB}KB, Attempted: ${incomingDataSizeKB}KB`,
+                message: `Data size limit exceeded. Current: ${currentUsage.dataSizeKB}KB, Limit: ${limit.maxDataSizeKB}KB, Attempted: ${incomingDataSizeKB}KB`,
                 error: 'DATA_SIZE_LIMIT_EXCEEDED',
                 details: {
-                    current: usage.dataSizeKB,
+                    current: currentUsage.dataSizeKB,
                     limit: limit.maxDataSizeKB,
                     attempted: incomingDataSizeKB,
-                    percentage: percentage
+                    percentage
                 }
             });
         }
 
-        console.log('🔍 [DEBUG] ✅ Limit check passed');
-        console.log('🔍 [DEBUG] checkDataSizeLimit - END');
+        // Warning на 90%
+        const percentage = Math.round((updatedUsage.dataSizeKB / limit.maxDataSizeKB) * 100);
+
+        if (percentage >= 90 && (updatedUsage.dataSizeKB - incomingDataSizeKB) < limit.maxDataSizeKB * 0.9) {
+            await this.emitLimitWarning(tenantId, 'DATA_SIZE', {
+                currentValue: updatedUsage.dataSizeKB,
+                limitValue: limit.maxDataSizeKB,
+                percentage
+            }, context);
+        }
     }
 
+    /**
+     * ✅ ИСПРАВЛЕНО: Проверка лимита запросов через ATOMIC OPERATION
+     * 
+     * Проверяет и увеличивает счетчик запросов атомарно
+     */
     async checkQueriesLimit(tenantId: string, context?: RequestContext): Promise<void> {
         const limit = await this.limitsModel.findOne({ tenantId }).exec();
-        const usage = await this.usageModel.findOne({ tenantId }).exec() ||
-            await this.usageModel.create({ tenantId });
 
         if (!limit) {
             return;
         }
 
-        const newTotal = usage.queriesCount + 1;
-        const percentage = Math.round((newTotal / limit.monthlyQueries) * 100);
+        // ✅ ATOMIC OPERATION
+        const updatedUsage = await this.usageModel.findOneAndUpdate(
+            {
+                tenantId,
+                queriesCount: { $lt: limit.monthlyQueries }  // Строго меньше
+            },
+            {
+                $inc: { queriesCount: 1 }
+            },
+            {
+                new: true,
+                upsert: false
+            }
+        ).exec();
 
-        if (newTotal >= limit.monthlyQueries * 0.9 && usage.queriesCount < limit.monthlyQueries * 0.9) {
-            await this.emitLimitWarning(tenantId, 'QUERIES', {
-                currentValue: usage.queriesCount,
-                limitValue: limit.monthlyQueries,
-                percentage: Math.round((usage.queriesCount / limit.monthlyQueries) * 100)
-            }, context);
-        }
+        if (!updatedUsage) {
+            const currentUsage = await this.usageModel.findOne({ tenantId }).exec() ||
+                await this.usageModel.create({ tenantId });
 
-        if (newTotal > limit.monthlyQueries) {
+            const percentage = Math.round(
+                ((currentUsage.queriesCount + 1) / limit.monthlyQueries) * 100
+            );
+
             await this.emitLimitViolation(tenantId, 'QUERIES', {
-                currentValue: usage.queriesCount,
+                currentValue: currentUsage.queriesCount,
                 limitValue: limit.monthlyQueries,
                 attemptedValue: 1,
-                percentage: percentage
+                percentage
             }, context);
 
             throw new ForbiddenException({
-                message: `Query limit exceeded. Maximum allowed: ${limit.monthlyQueries} queries per month`,
+                message: `Query limit exceeded. Current: ${currentUsage.queriesCount}, Limit: ${limit.monthlyQueries}`,
                 error: 'QUERY_LIMIT_EXCEEDED',
                 details: {
-                    current: usage.queriesCount,
+                    current: currentUsage.queriesCount,
                     limit: limit.monthlyQueries,
-                    percentage: percentage
+                    attempted: 1,
+                    percentage
                 }
             });
         }
+
+        // Warning на 90%
+        const percentage = Math.round((updatedUsage.queriesCount / limit.monthlyQueries) * 100);
+
+        if (percentage >= 90 && (updatedUsage.queriesCount - 1) < limit.monthlyQueries * 0.9) {
+            await this.emitLimitWarning(tenantId, 'QUERIES', {
+                currentValue: updatedUsage.queriesCount,
+                limitValue: limit.monthlyQueries,
+                percentage
+            }, context);
+        }
     }
 
+    /**
+     * Логирует нарушение лимита в audit систему
+     */
     private async emitLimitViolation(
         tenantId: string,
         limitType: 'DOCUMENTS' | 'DATA_SIZE' | 'QUERIES',
@@ -215,6 +321,9 @@ export class LimitsService {
         }
     }
 
+    /**
+     * Логирует предупреждение о приближении к лимиту
+     */
     private async emitLimitWarning(
         tenantId: string,
         limitType: 'DOCUMENTS' | 'DATA_SIZE' | 'QUERIES',
@@ -251,6 +360,9 @@ export class LimitsService {
         }
     }
 
+    /**
+     * Обновляет лимиты для tenant'а
+     */
     async setLimitsForTenant(tenantId: string, newLimits: any, context?: RequestContext): Promise<any> {
         const oldLimits = await this.limitsModel.findOne({ tenantId }).exec();
 
@@ -293,7 +405,20 @@ export class LimitsService {
         return result;
     }
 
+    /**
+     * ⚠️ DEPRECATED: Этот метод больше не используется!
+     * 
+     * Обновление usage теперь происходит атомарно внутри check* методов.
+     * Оставлено для обратной совместимости, но использовать НЕ рекомендуется.
+     * 
+     * @deprecated Используйте check* методы вместо этого
+     */
     async updateUsage(tenantId: string, docsCount: number, dataSizeKB: number): Promise<void> {
+        // ✅ Валидация: защита от отрицательных значений
+        if (docsCount < 0 || dataSizeKB < 0) {
+            throw new ForbiddenException('Usage values cannot be negative');
+        }
+
         await this.usageModel.findOneAndUpdate(
             { tenantId },
             {
@@ -307,6 +432,9 @@ export class LimitsService {
         ).exec();
     }
 
+    /**
+     * Получает лимиты для tenant'а
+     */
     async getLimitsForTenant(tenantId: string): Promise<any> {
         let limits = await this.limitsModel.findOne({ tenantId }).exec();
 
@@ -322,6 +450,9 @@ export class LimitsService {
         return limits;
     }
 
+    /**
+     * Получает текущее использование для tenant'а
+     */
     async getUsageForTenant(tenantId: string): Promise<any> {
         let usage = await this.usageModel.findOne({ tenantId }).exec();
 
