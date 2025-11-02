@@ -280,82 +280,190 @@ export class HttpProxyServer {
 
     private async forwardToMongoDB(req: express.Request, tenantId: string, body: any) {
         try {
-            // Получаем подключение к базе тенанта
             const connection = await (this.tenantConnectionService as any).getTenantConnection(
                 tenantId
             );
             const collectionName = this.extractCollectionName(req.path);
-
-            // Используем нативную коллекцию MongoDB (работает для всех коллекций)
-            // Для пациентов можно использовать модель, но для универсальности используем collection
             const collection = connection.collection(collectionName);
 
             let result;
-            switch (req.method) {
-                case 'GET':
-                case 'POST':
-                    if (body.operation === 'find') {
-                        // Убираем tenantId из фильтра так как мы уже в базе тенанта
-                        const filter = { ...body.filter };
-                        delete filter.tenantId; // tenantId уже не нужен в фильтре
+            const operation = body.operation || 'find';
 
-                        const cursor = collection.find(filter || {});
-                        if (body.limit) {
-                            cursor.limit(body.limit);
-                        }
-                        result = await cursor.toArray();
-                    } else if (body.operation === 'insertOne') {
-                        // Убираем tenantId из документа если он есть (он уже в базе)
-                        const document = { ...body.document };
-                        delete document.tenantId;
-                        result = await collection.insertOne(document);
-                    } else if (body.operation === 'insertMany') {
-                        // Убираем tenantId из каждого документа
-                        const documents = body.documents.map((doc: any) => {
-                            const cleanDoc = { ...doc };
-                            delete cleanDoc.tenantId;
-                            return cleanDoc;
-                        });
-                        result = await collection.insertMany(documents);
-                    } else if (body.operation === 'updateOne') {
-                        // Убираем tenantId из фильтра
-                        const filter = { ...body.filter };
-                        delete filter.tenantId;
-                        result = await collection.updateOne(
-                            filter,
-                            body.update
-                        );
-                    } else if (body.operation === 'deleteOne') {
-                        // Убираем tenantId из фильтра
-                        const filter = { ...body.filter };
-                        delete filter.tenantId;
-                        result = await collection.deleteOne(filter);
-                    } else {
-                        // По умолчанию - find
-                        const filter = { ...body.filter };
-                        delete filter.tenantId;
-                        result = await collection.find(filter || {}).toArray();
-                    }
+            console.log(`🔍 [Proxy] Executing operation: ${operation}`);
+
+            switch (operation) {
+                // READ - Получить всех пациентов
+                case 'find':
+                case 'findMany': {
+                    const filter = { ...body.filter };
+                    delete filter.tenantId;
+
+                    const cursor = collection.find(filter || {});
+                    if (body.limit) cursor.limit(body.limit);
+                    if (body.skip) cursor.skip(body.skip);
+                    if (body.sort) cursor.sort(body.sort);
+
+                    result = await cursor.toArray();
                     break;
+                }
+
+                // READ - Получить одного пациента по ID
+                case 'findOne':
+                case 'findById': {
+                    const filter = { ...body.filter };
+                    delete filter.tenantId;
+
+                    // Если передан ID напрямую
+                    if (body.id) {
+                        filter._id = new (await import('mongodb')).ObjectId(body.id);
+                    }
+
+                    result = await collection.findOne(filter);
+                    break;
+                }
+
+                // CREATE - Создать одного пациента
+                case 'insertOne':
+                case 'create': {
+                    const document = { ...body.document };
+                    delete document.tenantId;
+
+                    const insertResult = await collection.insertOne(document);
+                    result = {
+                        ...document,
+                        _id: insertResult.insertedId,
+                        acknowledged: insertResult.acknowledged
+                    };
+                    break;
+                }
+
+                // CREATE - Создать нескольких пациентов
+                case 'insertMany':
+                case 'createMany': {
+                    const documents = body.documents.map((doc: any) => {
+                        const cleanDoc = { ...doc };
+                        delete cleanDoc.tenantId;
+                        return cleanDoc;
+                    });
+
+                    const insertResult = await collection.insertMany(documents);
+                    result = {
+                        insertedIds: insertResult.insertedIds,
+                        insertedCount: insertResult.insertedCount,
+                        acknowledged: insertResult.acknowledged
+                    };
+                    break;
+                }
+
+                // UPDATE - Обновить одного пациента
+                case 'updateOne':
+                case 'update': {
+                    const filter = { ...body.filter };
+                    delete filter.tenantId;
+
+                    // Если передан ID напрямую
+                    if (body.id) {
+                        filter._id = new (await import('mongodb')).ObjectId(body.id);
+                    }
+
+                    const update = body.update || { $set: body.data };
+                    const updateResult = await collection.updateOne(filter, update);
+
+                    // Получаем обновленный документ
+                    const updatedDoc = await collection.findOne(filter);
+
+                    result = {
+                        matchedCount: updateResult.matchedCount,
+                        modifiedCount: updateResult.modifiedCount,
+                        acknowledged: updateResult.acknowledged,
+                        document: updatedDoc
+                    };
+                    break;
+                }
+
+                // UPDATE - Обновить несколько пациентов
+                case 'updateMany': {
+                    const filter = { ...body.filter };
+                    delete filter.tenantId;
+
+                    const update = body.update || { $set: body.data };
+                    const updateResult = await collection.updateMany(filter, update);
+
+                    result = {
+                        matchedCount: updateResult.matchedCount,
+                        modifiedCount: updateResult.modifiedCount,
+                        acknowledged: updateResult.acknowledged
+                    };
+                    break;
+                }
+
+                // DELETE - Удалить одного пациента
+                case 'deleteOne':
+                case 'delete': {
+                    const filter = { ...body.filter };
+                    delete filter.tenantId;
+
+                    // Если передан ID напрямую
+                    if (body.id) {
+                        filter._id = new (await import('mongodb')).ObjectId(body.id);
+                    }
+
+                    // Сначала получаем документ для возврата
+                    const docToDelete = await collection.findOne(filter);
+
+                    const deleteResult = await collection.deleteOne(filter);
+
+                    result = {
+                        deletedCount: deleteResult.deletedCount,
+                        acknowledged: deleteResult.acknowledged,
+                        document: docToDelete
+                    };
+                    break;
+                }
+
+                // DELETE - Удалить несколько пациентов
+                case 'deleteMany': {
+                    const filter = { ...body.filter };
+                    delete filter.tenantId;
+
+                    const deleteResult = await collection.deleteMany(filter);
+
+                    result = {
+                        deletedCount: deleteResult.deletedCount,
+                        acknowledged: deleteResult.acknowledged
+                    };
+                    break;
+                }
+
+                // COUNT - Подсчитать документы
+                case 'count':
+                case 'countDocuments': {
+                    const filter = { ...body.filter };
+                    delete filter.tenantId;
+
+                    result = await collection.countDocuments(filter || {});
+                    break;
+                }
+
                 default:
-                    throw new Error(`Unsupported method: ${req.method}`);
+                    throw new Error(`Unsupported operation: ${operation}`);
             }
 
-            console.log('✅ [Proxy] MongoDB ответ получен:', {
-                operation: body.operation,
-                documentsCount: Array.isArray(result) ? result.length : 1,
-                success: true
+            console.log('✅ [Proxy] Operation completed:', {
+                operation,
+                success: true,
+                resultType: Array.isArray(result) ? 'array' : typeof result
             });
 
             return {
                 success: true,
                 data: result,
-                operation: body.operation,
-                tenantId: body.filter?.tenantId
+                operation: operation,
+                tenantId: tenantId
             };
 
         } catch (error) {
-            console.error('❌ [Proxy] MongoDB ошибка:', error);
+            console.error('❌ [Proxy] MongoDB error:', error);
             throw error;
         }
     }
@@ -388,17 +496,36 @@ export class HttpProxyServer {
 
     private detectOperation(req: express.Request) {
         const operation = req.body.operation || 'find';
-        let documents = 1;
+        let documents = 0;
 
         switch (operation) {
-            case 'insertMany':
-                documents = req.body.documents?.length || 1;
+            case 'insertOne':
+            case 'create':
+                documents = 1;
                 break;
-            case 'find':
+            case 'insertMany':
+            case 'createMany':
+                documents = req.body.documents?.length || 0;
+                break;
+            case 'updateOne':
+            case 'update':
+            case 'deleteOne':
+            case 'delete':
+                documents = 0; // Для update/delete не увеличиваем счетчик документов
+                break;
+            case 'updateMany':
+            case 'deleteMany':
                 documents = 0;
                 break;
+            case 'find':
+            case 'findOne':
+            case 'findById':
+            case 'count':
+            case 'countDocuments':
+                documents = 0; // Read операции не влияют на количество документов
+                break;
             default:
-                documents = 1;
+                documents = 0;
         }
 
         return { type: operation, documents };
