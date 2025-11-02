@@ -193,10 +193,32 @@ export class HttpProxyServer {
 
     private async checkDataLimits(req: express.Request, tenantId: string) {
         try {
+            // 1️⃣ СНАЧАЛА получить текущий usage
+            const currentUsage = await this.limitsService.getUsageForTenant(tenantId);
+            const currentLimits = await this.limitsService.getLimitsForTenant(tenantId);
+
             const operation = this.detectOperation(req);
             const dataSize = this.calculateDataSize(req);
 
-            // ✅ Создаем context для audit logging
+            // 2️⃣ ЛОГИРОВАТЬ ДО операции
+            console.log(`🔍 [Limits] Проверка лимитов для tenant: ${tenantId}`);
+            console.log(`📊 [Limits] Операция: ${operation.type}`);
+            console.log(`   Добавляется: ${operation.documents} документов, ${dataSize} KB`);
+            console.log('');
+
+            console.log('📈 [Limits] ДОКУМЕНТЫ:');
+            console.log(`   Текущее: ${currentUsage.documentsCount}/${currentLimits.maxDocuments}`);
+            console.log(`   После: ${currentUsage.documentsCount + operation.documents}/${currentLimits.maxDocuments}`);
+            console.log(`   Осталось: ${currentLimits.maxDocuments - currentUsage.documentsCount} документов`);
+            console.log('');
+
+            console.log('💾 [Limits] РАЗМЕР ДАННЫХ:');
+            console.log(`   Текущее: ${currentUsage.dataSizeKB} KB / ${currentLimits.maxDataSizeKB} KB`);
+            console.log(`   После: ${currentUsage.dataSizeKB + dataSize} KB / ${currentLimits.maxDataSizeKB} KB`);
+            console.log(`   Осталось: ${currentLimits.maxDataSizeKB - currentUsage.dataSizeKB} KB`);
+            console.log('');
+
+            // 3️⃣ ВЫПОЛНИТЬ проверку
             const context = {
                 requestId: `proxy-${Date.now()}`,
                 method: req.method,
@@ -205,39 +227,26 @@ export class HttpProxyServer {
                 userAgent: req.headers['user-agent']
             };
 
-            console.log('🔍 [Limits] Проверка лимитов:', {
-                tenantId,
-                operation: operation.type,
-                documents: operation.documents,
-                dataSizeKB: dataSize
-            });
-
-            // ✅ Передаем context в каждый check метод
             if (operation.documents > 0) {
-                await this.limitsService.checkDocumentsLimit(
-                    tenantId,
-                    operation.documents,
-                    context  // ← ДОБАВИТЬ!
-                );
+                await this.limitsService.checkDocumentsLimit(tenantId, operation.documents, context);
             }
-
             if (dataSize > 0) {
-                await this.limitsService.checkDataSizeLimit(
-                    tenantId,
-                    dataSize,
-                    context  // ← ДОБАВИТЬ!
-                );
+                await this.limitsService.checkDataSizeLimit(tenantId, dataSize, context);
             }
+            await this.limitsService.checkQueriesLimit(tenantId, context);
 
-            await this.limitsService.checkQueriesLimit(
-                tenantId,
-                context  // ← ДОБАВИТЬ!
-            );
+            // 4️⃣ ЛОГИРОВАТЬ успех
+            console.log('✅ [Limits] Все проверки пройдены - операция разрешена');
+            console.log('═══════════════════════════════════════════════════════\n');
 
-            console.log('✅ [Limits] Все проверки пройдены');
             return { success: true };
         } catch (error) {
-            console.log('❌ [Limits] Лимит превышен:', error.message);
+            // 5️⃣ ЛОГИРОВАТЬ ошибку
+            console.log('❌ [Limits] ЛИМИТ ПРЕВЫШЕН!');
+            console.log(`   Причина: ${error.message}`);
+            console.log('🚫 Операция заблокирована!');
+            console.log('═══════════════════════════════════════════════════════\n');
+
             return {
                 success: false,
                 error: 'Data limits exceeded',

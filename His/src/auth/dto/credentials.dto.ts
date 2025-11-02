@@ -1,7 +1,22 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { ApiProperty } from '@nestjs/swagger';
 
+/**
+ * 🔐 LOGIN CREDENTIALS DTO
+ * 
+ * ✅ УПРОЩЕННАЯ ВЕРСИЯ для учебного проекта
+ * 
+ * Требования:
+ * - Email (валидный формат)
+ * - Password (минимум 6 символов)
+ * 
+ * Примеры валидных паролей:
+ * ✅ "123456"
+ * ✅ "password"
+ * ✅ "admin123"
+ * ✅ "qwerty"
+ */
 export class LoginCredentialsDto {
     @ApiProperty({
         description: 'User email address',
@@ -12,20 +27,13 @@ export class LoginCredentialsDto {
     email: string;
 
     @ApiProperty({
-        description: 'User password (min 8 chars, must contain uppercase, lowercase, number and special character)',
-        example: 'SecurePass123!',
-        minLength: 8,
-        pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])',
+        description: 'User password (minimum 6 characters)',
+        example: '123456',
+        minLength: 6,
     })
     @IsNotEmpty({ message: 'Password required' })
     @IsString({ message: 'Password must be string' })
-    @MinLength(8, { message: 'Password must be at least 8 characters' })
-    @Matches(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])/,
-        {
-            message: 'Password must contain at least: 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character (!@#$%^&*)'
-        }
-    )
+    @MinLength(6, { message: 'Password must be at least 6 characters' })
     password: string;
 }
 
