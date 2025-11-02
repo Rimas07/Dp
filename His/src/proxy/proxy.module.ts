@@ -8,9 +8,12 @@ import { LimitsModule } from '../limits/limits.module';
 import { AuditModule } from '../audit/audit.module';
 import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
     imports: [
+       
         TenantsModule,
         AuthModule,
         LimitsModule,
@@ -19,7 +22,8 @@ import { JwtModule } from '@nestjs/jwt';
         JwtModule // JwtModule уже глобальный, но явно импортируем для ясности
     ],
     controllers: [ProxyController],
-    providers: [ProxyService],
+    providers: [ProxyService, 
+    ],
     exports: [ProxyService]
 })
 export class ProxyModule { }

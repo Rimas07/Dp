@@ -1,6 +1,7 @@
 /* eslint-disable prettier/prettier */
 import express from 'express';
 import axios from 'axios';
+import rateLimit from 'express-rate-limit';
 import { AuthService } from '../auth/auth.service';
 import { LimitsService } from '../limits/limits.service';
 import { TenantsService } from '../tenants/tenants.service';
@@ -18,6 +19,9 @@ export class HttpProxyServer {
     private tenantConnectionService: TenantConnectionService;
     private jwtService: JwtService;
     private usersService: UsersService;
+
+    // Rate limiting storage
+    private tenantRequestCounts: Map<string, { count: number; resetTime: number }> = new Map();
 
     constructor(
         authService: AuthService,
@@ -42,13 +46,37 @@ export class HttpProxyServer {
     }
 
     private setupProxy() {
+        // 1️⃣ Глобальный rate limiter - защита от DDoS
+        const globalLimiter = rateLimit({
+            windowMs: 1 * 60 * 1000, // 1 минута
+            max: 5, // максимум 100 запросов с одного IP за минуту
+            message: {
+                success: false,
+                error: 'Too many requests from this IP',
+                message: 'Please try again later'
+            },
+            standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+            legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+        });
+
+        // Применяем глобальный лимитер ко всем /mongo/* запросам
+        this.app.use('/mongo/*', globalLimiter);
+
         this.app.use('/mongo/*', async (req, res) => {
             try {
                 console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, req.path);
+
                 const authResult = await this.checkAuthentication(req);
                 if (!authResult.success || !authResult.tenantId) {
                     return res.status(401).json(authResult);
                 }
+
+                // 2️⃣ Rate limiting по tenantId
+                const rateLimitResult = this.checkRateLimit(authResult.tenantId);
+                if (!rateLimitResult.success) {
+                    return res.status(429).json(rateLimitResult);
+                }
+
                 const tenantResult = await this.checkTenant(req, authResult.tenantId);
                 if (!tenantResult.success) {
                     return res.status(403).json(tenantResult);
@@ -78,6 +106,17 @@ export class HttpProxyServer {
         this.app.get('/proxy/health', (req, res) => {
             res.json({ status: 'HTTP Proxy Server is running!' });
         });
+
+        // Rate limiting statistics endpoint
+        this.app.get('/proxy/rate-limit-stats', (req, res) => {
+            const stats = this.getRateLimitStats();
+            res.json(stats);
+        });
+
+        // Периодическая очистка старых данных rate limiting (каждые 5 минут)
+        setInterval(() => {
+            this.cleanupOldRateLimitData();
+        }, 5 * 60 * 1000);
     }
 
     private async checkAuthentication(req: express.Request) {
@@ -189,6 +228,64 @@ export class HttpProxyServer {
                 warning: 'Tenant validation error, proceeding for testing'
             };
         }
+    }
+
+    /**
+     * 🚦 Rate Limiting по tenantId
+     * Ограничивает количество запросов от одного tenant в единицу времени
+     */
+    private checkRateLimit(tenantId: string): { success: boolean; error?: string; details?: any } {
+        const now = Date.now();
+        const windowMs = 60 * 1000; // 1 минута
+        const maxRequestsPerWindow = 50; // 50 запросов в минуту для одного tenant
+
+        // Получаем или создаем запись для tenant
+        let tenantData = this.tenantRequestCounts.get(tenantId);
+
+        if (!tenantData || now > tenantData.resetTime) {
+            // Создаем новое окно или сбрасываем старое
+            tenantData = {
+                count: 1,
+                resetTime: now + windowMs
+            };
+            this.tenantRequestCounts.set(tenantId, tenantData);
+
+            console.log(`🚦 [Rate Limit] New window for tenant ${tenantId}: 1/${maxRequestsPerWindow} requests`);
+            return { success: true };
+        }
+
+        // Увеличиваем счетчик
+        tenantData.count++;
+
+        // Вычисляем оставшееся время до сброса
+        const timeUntilReset = Math.ceil((tenantData.resetTime - now) / 1000);
+
+        console.log(`🚦 [Rate Limit] Tenant ${tenantId}: ${tenantData.count}/${maxRequestsPerWindow} requests`);
+
+        // Проверяем лимит
+        if (tenantData.count > maxRequestsPerWindow) {
+            console.log(`❌ [Rate Limit] БЛОКИРОВАНО! Tenant ${tenantId} превысил лимит ${maxRequestsPerWindow} запросов в минуту`);
+            return {
+                success: false,
+                error: 'Rate limit exceeded',
+                details: {
+                    message: `Too many requests from tenant ${tenantId}`,
+                    limit: maxRequestsPerWindow,
+                    windowMs: windowMs,
+                    current: tenantData.count,
+                    retryAfter: timeUntilReset,
+                    resetTime: new Date(tenantData.resetTime).toISOString()
+                }
+            };
+        }
+
+        return {
+            success: true,
+            details: {
+                remaining: maxRequestsPerWindow - tenantData.count,
+                resetIn: timeUntilReset
+            }
+        };
     }
 
     private async checkDataLimits(req: express.Request, tenantId: string) {
@@ -547,11 +644,70 @@ export class HttpProxyServer {
         return collectionName;
     }
 
+    /**
+     * 📊 Получить статистику rate limiting
+     */
+    private getRateLimitStats() {
+        const now = Date.now();
+        const stats: Array<{
+            tenantId: string;
+            requestCount: number;
+            isActive: boolean;
+            resetTime: string;
+            timeUntilResetSeconds: number;
+        }> = [];
+
+        for (const [tenantId, data] of this.tenantRequestCounts.entries()) {
+            const isActive = now < data.resetTime;
+            const timeUntilReset = isActive ? Math.ceil((data.resetTime - now) / 1000) : 0;
+
+            stats.push({
+                tenantId,
+                requestCount: data.count,
+                isActive,
+                resetTime: new Date(data.resetTime).toISOString(),
+                timeUntilResetSeconds: timeUntilReset
+            });
+        }
+
+        return {
+            success: true,
+            totalTenants: stats.length,
+            activeTenants: stats.filter(s => s.isActive).length,
+            tenants: stats,
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    /**
+     * 🧹 Очистка старых данных rate limiting
+     */
+    private cleanupOldRateLimitData() {
+        const now = Date.now();
+        let cleanedCount = 0;
+
+        for (const [tenantId, data] of this.tenantRequestCounts.entries()) {
+            // Удаляем записи, которые истекли более 5 минут назад
+            if (now > data.resetTime + 5 * 60 * 1000) {
+                this.tenantRequestCounts.delete(tenantId);
+                cleanedCount++;
+            }
+        }
+
+        if (cleanedCount > 0) {
+            console.log(`🧹 [Rate Limit] Cleaned up ${cleanedCount} old tenant records`);
+        }
+    }
+
     public start(port: number = 3001) {
         this.app.listen(port, () => {
             console.log(`🚀 [HTTP Proxy] Сервер запущен на порту ${port}`);
             console.log(`📡 [HTTP Proxy] MongoDB Proxy: http://localhost:${port}/mongo/*`);
             console.log(`🏥 [HTTP Proxy] Health Check: http://localhost:${port}/proxy/health`);
+            console.log(`🚦 [HTTP Proxy] Rate Limit Stats: http://localhost:${port}/proxy/rate-limit-stats`);
+            console.log(`⚡ [HTTP Proxy] Rate Limiting активен:`);
+            console.log(`   - Глобальный лимит: 100 запросов/мин с IP`);
+            console.log(`   - Лимит по tenant: 50 запросов/мин`);
         });
     }
 
