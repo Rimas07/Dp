@@ -10,9 +10,13 @@ services:
       - PORT=3000
       - DB_CONNECTION_STRING=mongodb://mongodb:27017/his
       - ENCRYPTION_KEY=your-very-secure-encryption-key-change-this-in-production
+      # ✅ ДОБАВЛЕНО: RabbitMQ URL для подключения к очереди
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
     depends_on:
-      - mongodb
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
     networks:
       - his-network
     restart: unless-stopped
@@ -36,8 +40,8 @@ services:
     image: rabbitmq:3.12-management
     container_name: his-rabbitmq
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - '5672:5672'      # AMQP порт
+      - '15672:15672'    # Management UI (http://localhost:15672)
     environment:
       - RABBITMQ_DEFAULT_USER=admin
       - RABBITMQ_DEFAULT_PASS=admin123
@@ -47,6 +51,12 @@ services:
     networks:
       - his-network
     restart: unless-stopped
+    # ✅ ДОБАВЛЕНО: Health check для проверки готовности RabbitMQ
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Producer сервис (опционально)
   producer:
@@ -66,7 +76,8 @@ services:
     profiles:
       - microservices # Запускается только при указании профиля
 
-  # Consumer сервис (опционально)
+  # Consumer сервис - обрабатывает audit события из RabbitMQ
+  # ✅ ИСПРАВЛЕНО: Убран profiles - теперь запускается автоматически
   consumer:
     build:
       context: ../consumer
@@ -74,12 +85,11 @@ services:
     environment:
       - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy  # Ждём пока RabbitMQ станет готов
     networks:
       - his-network
     restart: unless-stopped
-    profiles:
-      - microservices # Запускается только при указании профиля
 
 volumes:
   mongo-data:
