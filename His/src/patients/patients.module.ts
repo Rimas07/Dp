@@ -9,9 +9,10 @@ import { tenantModels } from 'src/providers/tenant-model-provider';
 import { AuthModule } from 'src/auth/auth.module';
 import { LimitsModule } from 'src/limits/limits.module';
 import { AuditModule } from 'src/audit/audit.module';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
-  imports: [TenantsModule, AuthModule, LimitsModule, AuditModule],
+  imports: [TenantsModule, AuthModule, LimitsModule, AuditModule, UsersModule],
   controllers: [PatientsController],
   providers: [PatientsService,
     tenantModels.PatientModel

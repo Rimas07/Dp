@@ -9,6 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { AuthService } from 'src/auth/auth.service';
+import { UsersService } from 'src/users/users.service';
 
 //Make sure to apply the TenantsMiddleware to any tenant Auth guarded route
 @Injectable()
@@ -16,6 +17,7 @@ export class TenantAuthenticationGuard implements CanActivate {
     constructor(
         private jwtService: JwtService,
         private authService: AuthService,
+        private usersService: UsersService,
     ) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {

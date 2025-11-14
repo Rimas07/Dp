@@ -145,28 +145,7 @@ export class HttpProxyServer {
 
             const token = authHeader.substring(7);
 
-            // Для тестирования с mock токеном - используем первый доступный тенант
-            if (token === 'valid-token') {
-                // Пытаемся найти первый доступный тенант из БД
-                const allTenants = await this.tenantsService.getAllTenants();
-                if (allTenants && allTenants.length > 0) {
-                    const firstTenant = allTenants[0];
-                    console.log(`🔍 [Proxy] The first tenant from the database is used: ${firstTenant.tenantId}`);
-                    return {
-                        success: true,
-                        tenantId: firstTenant.tenantId,
-                        userId: 'mock-user',
-                        source: 'mock-token-first-tenant'
-                    };
-                }
-                // Если тенантов нет, используем старый mock
-                return {
-                    success: true,
-                    tenantId: 'tenant123',
-                    userId: 'user456',
-                    source: 'mock-token'
-                };
-            }
+           
 
             // Вариант 3: Реальный JWT токен
             try {
@@ -649,6 +628,36 @@ export class HttpProxyServer {
      */
     private getRateLimitStats() {
         const now = Date.now();
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         const stats: Array<{
             tenantId: string;
             requestCount: number;

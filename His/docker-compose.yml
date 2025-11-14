@@ -9,6 +9,7 @@ services:
     environment:
       - PORT=3000
       - DB_CONNECTION_STRING=mongodb://mongodb:27017/his
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
       - ENCRYPTION_KEY=your-very-secure-encryption-key-change-this-in-production
     depends_on:
       - mongodb
@@ -39,9 +40,11 @@ services:
       - '5672:5672'
       - '15672:15672'
     environment:
-      - RABBITMQ_DEFAULT_USER=admin
-      - RABBITMQ_DEFAULT_PASS=admin123
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
       - RABBITMQ_DEFAULT_VHOST=/
+      # Разрешаем удаленные подключения для guest
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit loopback_users []
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
@@ -57,7 +60,7 @@ services:
       - '3001:3000'
     environment:
       - PORT=3000
-      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
     depends_on:
       - rabbitmq
     networks:
@@ -69,17 +72,15 @@ services:
   # Consumer сервис (опционально)
   consumer:
     build:
-      context: ../consumer
+      context: ./consumer
       dockerfile: Dockerfile
     environment:
-      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
     depends_on:
       - rabbitmq
     networks:
       - his-network
     restart: unless-stopped
-    profiles:
-      - microservices # Запускается только при указании профиля
 
 volumes:
   mongo-data:

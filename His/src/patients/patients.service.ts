@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Inject, Injectable, UsePipes, ValidationPipe, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, UsePipes, ValidationPipe, NotFoundException, InternalServerErrorException, ConflictException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { LimitsService } from 'src/limits/limits.service';
 import { Connection, Model } from 'mongoose';
@@ -14,10 +14,17 @@ export class PatientsService {
     ) { }
 
     async getPatients(tenantId: string) {
-        await this.limitsService.checkQueriesLimit(tenantId);
-        const tenantConnection = this.tenantConnection.useDb(`tenant_${tenantId}`);
-        const PatientModel = tenantConnection.model(Patient.name, PatientSchema);
-        return PatientModel.find();
+        try {
+            await this.limitsService.checkQueriesLimit(tenantId);
+            const tenantConnection = this.tenantConnection.useDb(`tenant_${tenantId}`);
+            const PatientModel = tenantConnection.model(Patient.name, PatientSchema);
+            return await PatientModel.find();
+        } catch (error) {
+            console.error(`Error fetching patients for tenant ${tenantId}:`, error);
+            throw new InternalServerErrorException(
+                `Failed to fetch patients: ${error.message}`
+            );
+        }
     }
 
     async getPatientById(tenantId: string, patientId: string) {
@@ -40,7 +47,7 @@ export class PatientsService {
         }
         const tenantDb = this.tenantConnection.useDb(`tenant_${tenantId}`);
         const PatientModel = tenantDb.model(Patient.name, PatientSchema);
-
+       
         const newPatient = new PatientModel({ ...createPatientDto });
         const savedPatient = await newPatient.save();
 

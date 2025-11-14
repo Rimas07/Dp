@@ -17,8 +17,11 @@ import { TenantsModule } from 'src/tenants/tenants.module';
                 name: 'AUDIT_SERVICE',
                 transport: Transport.RMQ,
                 options: {
-                    urls: ['amqp://localhost:5672'],
+                    urls: ['amqp://hisapp:hisapp123@localhost:5672'],
                     queue: 'audit-queue',
+                    queueOptions: {
+                        durable: true
+                    },
                 },
             },
         ]),

@@ -5,7 +5,8 @@ import { LimitsController } from './limits.controller';
 import { DataLimit, DataLimitSchema } from './limits.schema';
 import { DataUsage, DataUsageSchema } from './usage.schema';
 import { AuthModule } from '../auth/auth.module';
-import { AuditModule } from '../audit/audit.module'; 
+import { AuditModule } from '../audit/audit.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -13,8 +14,9 @@ import { AuditModule } from '../audit/audit.module';
       { name: DataLimit.name, schema: DataLimitSchema },
       { name: DataUsage.name, schema: DataUsageSchema },
     ]),
-    AuthModule, 
-    AuditModule, 
+    AuthModule,
+    AuditModule,
+    UsersModule,
   ],
   controllers: [LimitsController],
   providers: [LimitsService],
