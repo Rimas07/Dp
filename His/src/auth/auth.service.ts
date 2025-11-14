@@ -1,16 +1,3 @@
-/* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/await-thenable */
-/* eslint-disable prettier/prettier */
-
-/* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
-/* eslint-disable prettier/prettier */
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { nanoid } from 'nanoid';
@@ -62,11 +49,12 @@ export class AuthService {
         //         sub: user._id,
         //         tenantId: user.tenantId
         //     };
-
         const accessToken = await this.jwtService.sign(
-            { userId: user._id },
-            { secret: secretKey, expiresIn: '1h' }// expiration time token was changed from 10h to 1h for security concerns
-            //to avoid
+            {
+                userId: user._id,
+                tenantId: user.tenantId  
+            },
+            { secret: secretKey, expiresIn: '1h' }
         );
         return { accessToken, tenantId: user.tenantId }
         //     // Return user info and token

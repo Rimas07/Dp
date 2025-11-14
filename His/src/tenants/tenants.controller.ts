@@ -1,19 +1,17 @@
-/* eslint-disable prettier/prettier */
-
-/* eslint-disable prettier/prettier */
-
 import { Controller, Post, Body, } from '@nestjs/common';
 import { TenantsService } from '../tenants/tenants.service';
 import { Tenant } from './tenants.schema';
 import CreateCompanyDto from './create-company.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
-@ApiTags('Tenants')
+@ApiTags('Tenants')// swagger doc
+  
+  
 @Controller('tenants')
 export class TenantController {
   constructor(private readonly tenantService: TenantsService) { }
 
-  @Post('create-company')
+
   @ApiOperation({
     summary: 'Create new company',
     description: 'Create a new medical organization with administrator user'
@@ -28,8 +26,17 @@ export class TenantController {
     status: 400,
     description: 'Bad Request - Invalid input data or user already exists'
   })
+  @Post('create-company')
   async createCompany(@Body() createCompanyDto: CreateCompanyDto): Promise<Tenant> {
     return this.tenantService.createCompany(createCompanyDto);
   }
 
 }
+/*
+Everything that starts with an API is Swagger Documentation
+constructor(private readonly tenantService: TenantsService) { }
+create a constructor, make it private, import tenantService, but make it read-only.
+
+
+
+*/
