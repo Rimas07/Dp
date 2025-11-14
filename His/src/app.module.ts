@@ -14,6 +14,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { ProxyModule } from './proxy/proxy.module';
 import { LimitsModule } from './limits/limits.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { TenantsMiddleware } from './middlewares/tenants.middleware';
 import { LimitsController } from './limits/limits.controller';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -51,7 +52,8 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     AuthModule,
     AuditModule,
     ProxyModule,
-    LimitsModule
+    LimitsModule,
+    MetricsModule, // 📊 Модуль метрик (Prometheus)
   ],
   controllers: [AppController],
   providers: [
