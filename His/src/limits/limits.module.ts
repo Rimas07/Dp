@@ -7,6 +7,7 @@ import { DataUsage, DataUsageSchema } from './usage.schema';
 import { AuthModule } from '../auth/auth.module';
 import { AuditModule } from '../audit/audit.module';
 import { UsersModule } from '../users/users.module';
+import { MonitoringModule } from '../monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { UsersModule } from '../users/users.module';
     AuthModule,
     AuditModule,
     UsersModule,
+    MonitoringModule,
   ],
   controllers: [LimitsController],
   providers: [LimitsService],

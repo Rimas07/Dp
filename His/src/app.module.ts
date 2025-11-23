@@ -16,6 +16,7 @@ import { ProxyModule } from './proxy/proxy.module';
 import { LimitsModule } from './limits/limits.module';
 import { TenantsMiddleware } from './middlewares/tenants.middleware';
 import { LimitsController } from './limits/limits.controller';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 
 @Module({
@@ -43,7 +44,7 @@ import { LimitsController } from './limits/limits.controller';
       inject: [ConfigService],
     }),
 
-
+    MonitoringModule,
     TenantsModule,
     PatientsModule,
     UsersModule,

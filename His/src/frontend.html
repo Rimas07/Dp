@@ -764,8 +764,8 @@
                     localStorage.setItem('authToken', currentToken);
                     localStorage.setItem('currentTenantId', currentTenantId);
                     showMessage('loginMessage', `${translations[currentLanguage].login.successMessage} ${currentTenantId}`, 'success');
-                    console.log('Токен сохранен:', currentToken);
-                    console.log('Tenant ID сохранен:', currentTenantId);
+                    console.log('Token saved:', currentToken);
+                    console.log('Tenant ID saved:', currentTenantId);
                 } else {
                     showMessage('loginMessage', `${translations[currentLanguage].login.errorMessage} ${data.message || 'Invalid credentials'}`, 'error');
                 }
@@ -1009,7 +1009,7 @@
                 const response = await fetch(`${API_BASE_URL}/audit/stats`);
                 const data = await response.json();
 
-                console.log('📊 Получена статистика:', data);
+                console.log('📊 Statistics received:', data);
 
                 if (response.ok) {
                     document.getElementById('totalTenants').textContent = data.totalTenants || 0;
@@ -1030,7 +1030,7 @@
                     document.getElementById('totalPatients').textContent = translations[currentLanguage].common.loadingError;
                 }
             } catch (error) {
-                console.error('Ошибка загрузки статистики:', error);
+                console.error('Error loading statistics:', error);
                 document.getElementById('totalTenants').textContent = translations[currentLanguage].common.loadingError;
                 document.getElementById('totalPatients').textContent = translations[currentLanguage].common.loadingError;
             }
@@ -1098,27 +1098,27 @@
         }
 
         function debugToken() {
-            console.log('Текущий токен:', currentToken);
-            console.log('Текущий Tenant ID:', currentTenantId);
+            console.log('Current token:', currentToken);
+            console.log('Current Tenant ID:', currentTenantId);
 
             if (currentToken) {
                 try {
                     const payload = JSON.parse(atob(currentToken.split('.')[1]));
-                    console.log('Payload токена:', payload);
-                    console.log('Время истечения:', new Date(payload.exp * 1000));
+                    console.log('Token payload:', payload);
+                    console.log('Expiration time:', new Date(payload.exp * 1000));
                 } catch (e) {
-                    console.log('Ошибка декодирования токена:', e);
+                    console.log('Token decoding error:', e);
                 }
             }
         }
 
         async function testPatientsCount() {
             try {
-                console.log('🔍 Тестируем подсчет пациентов...');
+                console.log('🔍 Testing patient count...');
                 const response = await fetch(`${API_BASE_URL}/audit/patients-count`);
                 const data = await response.json();
 
-                console.log('📊 Результат подсчета пациентов:', data);
+                console.log('📊 Patient count result:', data);
 
                 if (response.ok) {
                     alert(`Найдено пациентов: ${data.totalPatients}\nТенантов: ${data.totalTenants}\n\nДетали:\n${JSON.stringify(data.tenantStats, null, 2)}`);
@@ -1126,14 +1126,14 @@
                     alert(`Ошибка: ${data.error || 'Неизвестная ошибка'}`);
                 }
             } catch (error) {
-                console.error('❌ Ошибка тестирования:', error);
+                console.error('❌ Testing error:', error);
                 alert(`Ошибка подключения: ${error.message}`);
             }
         }
 
         window.addEventListener('error', function (e) {
             if (e.message.includes('CORS')) {
-                console.warn('CORS ошибка. Убедитесь, что backend сервер запущен и настроен для CORS.');
+                console.warn('CORS error. Make sure the backend server is running and configured for CORS.');
             }
         });
     </script>

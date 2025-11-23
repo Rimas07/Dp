@@ -60,9 +60,9 @@ export class HttpProxyServer {
         });
 
         // Применяем глобальный лимитер ко всем /mongo/* запросам
-        this.app.use('/mongo/*', globalLimiter);
+        this.app.use('/mongo/*path', globalLimiter);
 
-        this.app.use('/mongo/*', async (req, res) => {
+        this.app.use('/mongo/*path', async (req, res) => {
             try {
                 console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, req.path);
 
@@ -188,7 +188,7 @@ export class HttpProxyServer {
             // Для тестирования с mock токеном - пропускаем если тенанта нет
             // В продакшене это должно быть строгой проверкой
             if (!tenant) {
-                console.log(`⚠️ [Proxy] Тенант ${tenantId} не найден в БД, но продолжаем для тестирования`);
+                console.log(`⚠️ [Proxy] Tenant ${tenantId} not found in DB, but continuing for testing`);
                 // Возвращаем успех для тестирования, но предупреждаем
                 return {
                     success: true,
@@ -199,7 +199,7 @@ export class HttpProxyServer {
 
             return { success: true, tenant };
         } catch (error) {
-            console.error('❌ [Proxy] Ошибка проверки тенанта:', error);
+            console.error('❌ [Proxy] Tenant validation error:', error);
             // Для тестирования - не блокируем запрос
             return {
                 success: true,
@@ -243,7 +243,7 @@ export class HttpProxyServer {
 
         // Проверяем лимит
         if (tenantData.count > maxRequestsPerWindow) {
-            console.log(`❌ [Rate Limit] БЛОКИРОВАНО! Tenant ${tenantId} превысил лимит ${maxRequestsPerWindow} запросов в минуту`);
+            console.log(`❌ [Rate Limit] BLOCKED! Tenant ${tenantId} exceeded limit of ${maxRequestsPerWindow} requests per minute`);
             return {
                 success: false,
                 error: 'Rate limit exceeded',
@@ -277,21 +277,21 @@ export class HttpProxyServer {
             const dataSize = this.calculateDataSize(req);
 
             // 2️⃣ ЛОГИРОВАТЬ ДО операции
-            console.log(`🔍 [Limits] Проверка лимитов для tenant: ${tenantId}`);
-            console.log(`📊 [Limits] Операция: ${operation.type}`);
-            console.log(`   Добавляется: ${operation.documents} документов, ${dataSize} KB`);
+            console.log(`🔍 [Limits] Checking limits for tenant: ${tenantId}`);
+            console.log(`📊 [Limits] Operation: ${operation.type}`);
+            console.log(`   Adding: ${operation.documents} documents, ${dataSize} KB`);
             console.log('');
 
-            console.log('📈 [Limits] ДОКУМЕНТЫ:');
-            console.log(`   Текущее: ${currentUsage.documentsCount}/${currentLimits.maxDocuments}`);
-            console.log(`   После: ${currentUsage.documentsCount + operation.documents}/${currentLimits.maxDocuments}`);
-            console.log(`   Осталось: ${currentLimits.maxDocuments - currentUsage.documentsCount} документов`);
+            console.log('📈 [Limits] DOCUMENTS:');
+            console.log(`   Current: ${currentUsage.documentsCount}/${currentLimits.maxDocuments}`);
+            console.log(`   After: ${currentUsage.documentsCount + operation.documents}/${currentLimits.maxDocuments}`);
+            console.log(`   Remaining: ${currentLimits.maxDocuments - currentUsage.documentsCount} documents`);
             console.log('');
 
-            console.log('💾 [Limits] РАЗМЕР ДАННЫХ:');
-            console.log(`   Текущее: ${currentUsage.dataSizeKB} KB / ${currentLimits.maxDataSizeKB} KB`);
-            console.log(`   После: ${currentUsage.dataSizeKB + dataSize} KB / ${currentLimits.maxDataSizeKB} KB`);
-            console.log(`   Осталось: ${currentLimits.maxDataSizeKB - currentUsage.dataSizeKB} KB`);
+            console.log('💾 [Limits] DATA SIZE:');
+            console.log(`   Current: ${currentUsage.dataSizeKB} KB / ${currentLimits.maxDataSizeKB} KB`);
+            console.log(`   After: ${currentUsage.dataSizeKB + dataSize} KB / ${currentLimits.maxDataSizeKB} KB`);
+            console.log(`   Remaining: ${currentLimits.maxDataSizeKB - currentUsage.dataSizeKB} KB`);
             console.log('');
 
             // 3️⃣ ВЫПОЛНИТЬ проверку
@@ -312,15 +312,15 @@ export class HttpProxyServer {
             await this.limitsService.checkQueriesLimit(tenantId, context);
 
             // 4️⃣ ЛОГИРОВАТЬ успех
-            console.log('✅ [Limits] Все проверки пройдены - операция разрешена');
+            console.log('✅ [Limits] All checks passed - operation allowed');
             console.log('═══════════════════════════════════════════════════════\n');
 
             return { success: true };
         } catch (error) {
             // 5️⃣ ЛОГИРОВАТЬ ошибку
-            console.log('❌ [Limits] ЛИМИТ ПРЕВЫШЕН!');
-            console.log(`   Причина: ${error.message}`);
-            console.log('🚫 Операция заблокирована!');
+            console.log('❌ [Limits] LIMIT EXCEEDED!');
+            console.log(`   Reason: ${error.message}`);
+            console.log('🚫 Operation blocked!');
             console.log('═══════════════════════════════════════════════════════\n');
 
             return {
@@ -346,7 +346,7 @@ export class HttpProxyServer {
             modifiedBody.limit = 1000;
         }
 
-        console.log('🔧 [Proxy] Модифицированный запрос:', {
+        console.log('🔧 [Proxy] Modified request:', {
             original: req.body,
             modified: modifiedBody
         });
@@ -566,7 +566,7 @@ export class HttpProxyServer {
                 }
             });
         } catch (error) {
-            console.error('❌ [Audit] Ошибка логирования:', error);
+            console.error('❌ [Audit] Logging error:', error);
         }
     }
 
@@ -619,7 +619,7 @@ export class HttpProxyServer {
 
         // Mongoose автоматически конвертирует имя модели в множественное число
         // Patient -> patients, но для коллекций используем как есть
-        console.log(`🔍 [Proxy] Извлечено имя коллекции из пути ${path}: ${collectionName}`);
+        console.log(`🔍 [Proxy] Extracted collection name from path ${path}: ${collectionName}`);
         return collectionName;
     }
 
@@ -710,13 +710,13 @@ export class HttpProxyServer {
 
     public start(port: number = 3001) {
         this.app.listen(port, () => {
-            console.log(`🚀 [HTTP Proxy] Сервер запущен на порту ${port}`);
-            console.log(`📡 [HTTP Proxy] MongoDB Proxy: http://localhost:${port}/mongo/*`);
-            console.log(`🏥 [HTTP Proxy] Health Check: http://localhost:${port}/proxy/health`);
-            console.log(`🚦 [HTTP Proxy] Rate Limit Stats: http://localhost:${port}/proxy/rate-limit-stats`);
-            console.log(`⚡ [HTTP Proxy] Rate Limiting активен:`);
-            console.log(`   - Глобальный лимит: 100 запросов/мин с IP`);
-            console.log(`   - Лимит по tenant: 50 запросов/мин`);
+        console.log(`🚀 [HTTP Proxy] Server started on port ${port}`);
+        console.log(`📡 [HTTP Proxy] MongoDB Proxy: http://localhost:${port}/mongo/*path`);
+        console.log(`🏥 [HTTP Proxy] Health Check: http://localhost:${port}/proxy/health`);
+        console.log(`🚦 [HTTP Proxy] Rate Limit Stats: http://localhost:${port}/proxy/rate-limit-stats`);
+        console.log(`⚡ [HTTP Proxy] Rate Limiting active:`);
+        console.log(`   - Global limit: 100 requests/min per IP`);
+        console.log(`   - Tenant limit: 50 requests/min`);
         });
     }
 

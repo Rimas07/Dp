@@ -25,7 +25,7 @@ export class ProxyController {
         return this.proxyService.health();
     }
 
-    @Post('mongo/*')
+    @Post('mongo/*path')
     @ApiOperation({
         summary: 'HTTP Proxy to MongoDB',
         description: 'Настоящий HTTP Proxy который перехватывает и пересылает запросы в MongoDB'
@@ -66,7 +66,7 @@ export class ProxyController {
     async testProxy(@Req() req: Request) {
         try {
             console.log('\n═══════════════════════════════════════');
-            console.log('🔍 THE PROXY TEST HAS STARTEDЯ');
+            console.log('🔍 THE PROXY TEST HAS STARTED');
             console.log('═══════════════════════════════════════\n');
 
             const result = await this.proxyService.processRequest(req);
@@ -108,7 +108,7 @@ export class ProxyController {
                 message: 'HTTP Proxy server started on port 3001',
                 endpoints: {
                     health: 'http://localhost:3001/proxy/health',
-                    mongo: 'http://localhost:3001/mongo/*',
+                    mongo: 'http://localhost:3001/mongo/*path',
                     test: 'http://localhost:3001/proxy/test'
                 }
             };

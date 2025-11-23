@@ -1,13 +1,16 @@
-/* eslint-disable prettier/prettier */
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Observable, catchError, tap, throwError } from 'rxjs';
 import { AuditService } from './audit.service';
 import { AuditEvent } from './audit-event.dto';
+import { MonitoringService } from '../monitoring/monitoring.service';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
-    constructor(private readonly audit: AuditService) { }
+    constructor(
+        private readonly audit: AuditService,
+        private readonly monitoring: MonitoringService, // ← ДОБАВИЛИ
+    ) { }
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         const start = Date.now();
@@ -15,11 +18,23 @@ export class AuditInterceptor implements NestInterceptor {
         const req = http.getRequest<Request>();
         const res = http.getResponse<Response>();
 
-        const tenantId = (req as any).tenantId;
+        const tenantId = (req as any).tenantId || 'unknown';
         const userId = (req as any).user?.id;
 
         return next.handle().pipe(
             tap((data) => {
+                const duration = Date.now() - start;
+
+                // Записываем в Prometheus
+                this.monitoring.recordRequest(
+                    tenantId,
+                    req.method,
+                    req.originalUrl || req.url,
+                    res.statusCode,
+                    duration
+                );
+
+                // Оригинальное audit логирование
                 const event: AuditEvent = {
                     timestamp: new Date().toISOString(),
                     level: 'info',
@@ -29,16 +44,27 @@ export class AuditInterceptor implements NestInterceptor {
                     method: req.method,
                     path: req.originalUrl || req.url,
                     statusCode: res.statusCode,
-                    durationMs: Date.now() - start,
+                    durationMs: duration,
                     ip: req.ip,
                     userAgent: req.headers['user-agent'],
                     message: 'HTTP request completed',
                     requestBody: sanitize(req.body),
-                    // responseBody: data,
                 };
                 this.audit.emit(event);
             }),
             catchError((err) => {
+                const duration = Date.now() - start;
+
+                // Записываем ошибку в Prometheus
+                this.monitoring.recordRequest(
+                    tenantId,
+                    req.method,
+                    req.originalUrl || req.url,
+                    (err as any)?.status || 500,
+                    duration
+                );
+
+                // Оригинальное audit логирование ошибки
                 const event: AuditEvent = {
                     timestamp: new Date().toISOString(),
                     level: 'error',
@@ -48,7 +74,7 @@ export class AuditInterceptor implements NestInterceptor {
                     method: req.method,
                     path: req.originalUrl || req.url,
                     statusCode: (err as any)?.status || 500,
-                    durationMs: Date.now() - start,
+                    durationMs: duration,
                     ip: req.ip,
                     userAgent: req.headers['user-agent'],
                     message: 'HTTP request failed',
@@ -70,6 +96,3 @@ function sanitize(body: any) {
     }
     return clone;
 }
-
-
-

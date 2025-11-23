@@ -6,6 +6,7 @@ import { DataLimit, DataLimitSchema } from './limits.schema';
 import { DataUsage, DataUsageSchema } from './usage.schema';
 import { AuditService } from '../audit/audit.service';
 import { AuditEvent, LimitViolationEvent, LimitWarningEvent } from '../audit/audit-event.dto';
+import { MonitoringService } from '../monitoring/monitoring.service'; // ← ДОБАВЬ ЭТУ СТРОКУ
 
 export interface RequestContext {
     requestId?: string;
@@ -34,7 +35,8 @@ export class LimitsService {
 
     constructor(
         @InjectConnection() private connection: Connection,
-        private readonly auditService: AuditService
+        private readonly auditService: AuditService,
+        private readonly monitoring: MonitoringService, // ← ДОБАВЬ ЭТУ СТРОКУ
     ) {
         this.limitsModel = this.connection.model(DataLimit.name, DataLimitSchema);
         this.usageModel = this.connection.model(DataUsage.name, DataUsageSchema);
@@ -42,19 +44,6 @@ export class LimitsService {
 
     /**
      * ✅ ИСПРАВЛЕНО: Проверка лимита документов через ATOMIC OPERATION
-     * 
-     * СТАРАЯ ПРОБЛЕМА:
-     * - Проверка и обновление были раздельными операциями
-     * - Два параллельных запроса могли обойти лимит
-     * 
-     * НОВОЕ РЕШЕНИЕ:
-     * - Используем findOneAndUpdate с условием
-     * - MongoDB гарантирует атомарность
-     * - Невозможно обойти лимит параллельными запросами
-     * 
-     * @param tenantId - ID tenant'а
-     * @param incomingDocsCount - Количество добавляемых документов
-     * @param context - Контекст запроса для audit
      */
     async checkDocumentsLimit(
         tenantId: string,
@@ -73,31 +62,25 @@ export class LimitsService {
         const limit = await this.limitsModel.findOne({ tenantId }).exec();
 
         if (!limit) {
-            // Если нет лимитов - пропускаем проверку
             return;
         }
 
-        // ✅ ATOMIC OPERATION: Проверка + обновление за одну операцию
-        // MongoDB гарантирует что это выполнится атомарно
+        // ✅ ATOMIC OPERATION
         const updatedUsage = await this.usageModel.findOneAndUpdate(
             {
                 tenantId,
-                // УСЛОВИЕ: Можно ли добавить документы?
                 documentsCount: { $lte: limit.maxDocuments - incomingDocsCount }
             },
             {
-                // ДЕЙСТВИЕ: Увеличить счетчик
                 $inc: { documentsCount: incomingDocsCount }
             },
             {
-                new: true,  // Вернуть обновленный документ
-                upsert: false  // Не создавать если не существует
+                new: true,
+                upsert: false
             }
         ).exec();
 
-        // Если updatedUsage === null, значит условие не выполнилось (лимит превышен)
         if (!updatedUsage) {
-            // Получаем текущее использование для деталей ошибки
             const currentUsage = await this.usageModel.findOne({ tenantId }).exec() ||
                 await this.usageModel.create({ tenantId });
 
@@ -105,7 +88,9 @@ export class LimitsService {
                 ((currentUsage.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
             );
 
-            // Логируем нарушение лимита
+            // 📊 МОНИТОРИНГ: Записываем превышение лимита
+            this.monitoring.recordLimitViolation(tenantId, 'DOCUMENTS');
+
             await this.emitLimitViolation(tenantId, 'DOCUMENTS', {
                 currentValue: currentUsage.documentsCount,
                 limitValue: limit.maxDocuments,
@@ -125,6 +110,14 @@ export class LimitsService {
             });
         }
 
+        // 📊 МОНИТОРИНГ: Записываем текущее использование ресурсов
+        this.monitoring.recordResourceUsage(
+            tenantId,
+            'documents',
+            updatedUsage.documentsCount,
+            limit.maxDocuments
+        );
+
         // Проверка на 90% для warning
         const percentage = Math.round((updatedUsage.documentsCount / limit.maxDocuments) * 100);
 
@@ -139,20 +132,17 @@ export class LimitsService {
 
     /**
      * ✅ ИСПРАВЛЕНО: Проверка лимита размера данных через ATOMIC OPERATION
-     * 
-     * Аналогично checkDocumentsLimit, но для размера данных в KB
      */
     async checkDataSizeLimit(
         tenantId: string,
         incomingDataSizeKB: number,
         context?: RequestContext
     ): Promise<void> {
-        // Валидация входных данных
         if (incomingDataSizeKB < 0) {
             throw new ForbiddenException('Data size cannot be negative');
         }
 
-        if (incomingDataSizeKB > 10240) {  // 10MB max за раз
+        if (incomingDataSizeKB > 10240) {
             throw new ForbiddenException('Cannot add more than 10MB at once');
         }
 
@@ -185,6 +175,9 @@ export class LimitsService {
                 ((currentUsage.dataSizeKB + incomingDataSizeKB) / limit.maxDataSizeKB) * 100
             );
 
+            // 📊 МОНИТОРИНГ: Записываем превышение лимита
+            this.monitoring.recordLimitViolation(tenantId, 'DATA_SIZE');
+
             await this.emitLimitViolation(tenantId, 'DATA_SIZE', {
                 currentValue: currentUsage.dataSizeKB,
                 limitValue: limit.maxDataSizeKB,
@@ -204,6 +197,14 @@ export class LimitsService {
             });
         }
 
+        // 📊 МОНИТОРИНГ: Записываем текущее использование
+        this.monitoring.recordResourceUsage(
+            tenantId,
+            'data_size_kb',
+            updatedUsage.dataSizeKB,
+            limit.maxDataSizeKB
+        );
+
         // Warning на 90%
         const percentage = Math.round((updatedUsage.dataSizeKB / limit.maxDataSizeKB) * 100);
 
@@ -218,8 +219,6 @@ export class LimitsService {
 
     /**
      * ✅ ИСПРАВЛЕНО: Проверка лимита запросов через ATOMIC OPERATION
-     * 
-     * Проверяет и увеличивает счетчик запросов атомарно
      */
     async checkQueriesLimit(tenantId: string, context?: RequestContext): Promise<void> {
         const limit = await this.limitsModel.findOne({ tenantId }).exec();
@@ -232,7 +231,7 @@ export class LimitsService {
         const updatedUsage = await this.usageModel.findOneAndUpdate(
             {
                 tenantId,
-                queriesCount: { $lt: limit.monthlyQueries }  // Строго меньше
+                queriesCount: { $lt: limit.monthlyQueries }
             },
             {
                 $inc: { queriesCount: 1 }
@@ -250,6 +249,9 @@ export class LimitsService {
             const percentage = Math.round(
                 ((currentUsage.queriesCount + 1) / limit.monthlyQueries) * 100
             );
+
+            // 📊 МОНИТОРИНГ: Записываем превышение лимита
+            this.monitoring.recordLimitViolation(tenantId, 'QUERIES');
 
             await this.emitLimitViolation(tenantId, 'QUERIES', {
                 currentValue: currentUsage.queriesCount,
@@ -270,6 +272,14 @@ export class LimitsService {
             });
         }
 
+        // 📊 МОНИТОРИНГ: Записываем текущее использование
+        this.monitoring.recordResourceUsage(
+            tenantId,
+            'queries',
+            updatedUsage.queriesCount,
+            limit.monthlyQueries
+        );
+
         // Warning на 90%
         const percentage = Math.round((updatedUsage.queriesCount / limit.monthlyQueries) * 100);
 
@@ -282,9 +292,8 @@ export class LimitsService {
         }
     }
 
-    /**
-     * Логирует нарушение лимита в audit систему
-     */
+    // ... остальные методы без изменений ...
+
     private async emitLimitViolation(
         tenantId: string,
         limitType: 'DOCUMENTS' | 'DATA_SIZE' | 'QUERIES',
@@ -321,9 +330,6 @@ export class LimitsService {
         }
     }
 
-    /**
-     * Логирует предупреждение о приближении к лимиту
-     */
     private async emitLimitWarning(
         tenantId: string,
         limitType: 'DOCUMENTS' | 'DATA_SIZE' | 'QUERIES',
@@ -360,9 +366,6 @@ export class LimitsService {
         }
     }
 
-    /**
-     * Обновляет лимиты для tenant'а
-     */
     async setLimitsForTenant(tenantId: string, newLimits: any, context?: RequestContext): Promise<any> {
         const oldLimits = await this.limitsModel.findOne({ tenantId }).exec();
 
@@ -405,16 +408,7 @@ export class LimitsService {
         return result;
     }
 
-    /**
-     * ⚠️ DEPRECATED: Этот метод больше не используется!
-     * 
-     * Обновление usage теперь происходит атомарно внутри check* методов.
-     * Оставлено для обратной совместимости, но использовать НЕ рекомендуется.
-     * 
-     * @deprecated Используйте check* методы вместо этого
-     */
     async updateUsage(tenantId: string, docsCount: number, dataSizeKB: number): Promise<void> {
-        // ✅ Валидация: защита от отрицательных значений
         if (docsCount < 0 || dataSizeKB < 0) {
             throw new ForbiddenException('Usage values cannot be negative');
         }
@@ -432,9 +426,6 @@ export class LimitsService {
         ).exec();
     }
 
-    /**
-     * Получает лимиты для tenant'а
-     */
     async getLimitsForTenant(tenantId: string): Promise<any> {
         let limits = await this.limitsModel.findOne({ tenantId }).exec();
 
@@ -450,9 +441,6 @@ export class LimitsService {
         return limits;
     }
 
-    /**
-     * Получает текущее использование для tenant'а
-     */
     async getUsageForTenant(tenantId: string): Promise<any> {
         let usage = await this.usageModel.findOne({ tenantId }).exec();
 

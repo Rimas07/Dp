@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { nanoid } from 'nanoid';
+import { nanoid } from 'nanoid';// library for generating random jwt secret , whic will create создаст строку из 128 случайных символов
 import { TenantConnectionService } from 'src/services/tenant-connection.service';
 import { encrypt } from 'src/utils/encrypt';
 import { Secrets, SecretsSchema } from './secrets.schema';
@@ -13,10 +13,10 @@ import { JwtService } from '@nestjs/jwt';
 @Injectable()
 export class AuthService {
     constructor(
-        private configService: ConfigService,
-        private tenantConnectionService: TenantConnectionService,
+        private configService: ConfigService,//для получения мастер-ключа из конфигурации
+        private tenantConnectionService: TenantConnectionService,//для доступа к БД конкретных компаний
         private usersService: UsersService,
-        private jwtService: JwtService,
+        private jwtService: JwtService,//ля работы с JWT токенами
     ) { }
 
     async login(credentials: LoginCredentialsDto) {
