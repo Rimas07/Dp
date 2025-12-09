@@ -8,6 +8,7 @@ import { AuditService } from '../audit/audit.service';
 import { TenantConnectionService } from '../services/tenant-connection.service';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { MonitoringService } from '../monitoring/monitoring.service';
 
 @Injectable()
 export class ProxyService {
@@ -21,6 +22,7 @@ export class ProxyService {
         private tenantConnectionService: TenantConnectionService,
         private jwtService: JwtService,
         private usersService: UsersService,
+        private monitoringService: MonitoringService,
     ) {
         this.initializeProxyServer();
     }
@@ -33,7 +35,8 @@ export class ProxyService {
             this.auditService,
             this.tenantConnectionService,
             this.jwtService,
-            this.usersService
+            this.usersService,
+            this.monitoringService
         );
     }
 

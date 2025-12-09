@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   prometheus:
@@ -10,23 +10,23 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
     networks:
-      - monitoring-network  # Используем одну сеть
+      - monitoring-network # Используем одну сеть
 
   grafana:
     image: grafana/grafana:latest
     container_name: his-grafana
     ports:
-      - "3001:3000"
+      - "3002:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SECURITY_ADMIN_USER=admin
     volumes:
       - grafana-data:/var/lib/grafana
     networks:
-      - monitoring-network  # Та же сеть!
+      - monitoring-network # Та же сеть!
     depends_on:
       - prometheus
 

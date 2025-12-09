@@ -9,6 +9,8 @@ import { AuditService } from '../audit/audit.service';
 import { TenantConnectionService } from '../services/tenant-connection.service';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { MonitoringService } from '../monitoring/monitoring.service';
+import { register } from 'prom-client';
 
 export class HttpProxyServer {
     private app: express.Application;
@@ -19,6 +21,7 @@ export class HttpProxyServer {
     private tenantConnectionService: TenantConnectionService;
     private jwtService: JwtService;
     private usersService: UsersService;
+    private monitoringService: MonitoringService;
 
     // Rate limiting storage
     private tenantRequestCounts: Map<string, { count: number; resetTime: number }> = new Map();
@@ -30,7 +33,8 @@ export class HttpProxyServer {
         auditService: AuditService,
         tenantConnectionService: TenantConnectionService,
         jwtService: JwtService,
-        usersService: UsersService
+        usersService: UsersService,
+        monitoringService: MonitoringService
     ) {
         this.authService = authService;
         this.limitsService = limitsService;
@@ -39,6 +43,7 @@ export class HttpProxyServer {
         this.tenantConnectionService = tenantConnectionService;
         this.jwtService = jwtService;
         this.usersService = usersService;
+        this.monitoringService = monitoringService;
 
         this.app = express();
         this.app.use(express.json());
@@ -60,29 +65,45 @@ export class HttpProxyServer {
         });
 
         // Применяем глобальный лимитер ко всем /mongo/* запросам
-        this.app.use('/mongo/*path', globalLimiter);
+        // Используем middleware для всех путей, начинающихся с /mongo/
+        this.app.use('/mongo', globalLimiter);
 
-        this.app.use('/mongo/*path', async (req, res) => {
+        // Обрабатываем все HTTP методы для путей /mongo/*
+        // Используем use() для обработки всех подпутей /mongo/*
+        // Express автоматически удаляет префикс '/mongo' из req.path
+        this.app.use('/mongo', async (req, res) => {
+            const startTime = Date.now();
+            const method = req.method;
+            const path = req.originalUrl || req.url;
+            let tenantId = 'unknown';
+            let statusCode = 500;
+
             try {
-                console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, req.path);
+                console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, req.originalUrl || req.url);
 
                 const authResult = await this.checkAuthentication(req);
                 if (!authResult.success || !authResult.tenantId) {
+                    statusCode = 401;
                     return res.status(401).json(authResult);
                 }
+
+                tenantId = authResult.tenantId;
 
                 // 2️⃣ Rate limiting по tenantId
                 const rateLimitResult = this.checkRateLimit(authResult.tenantId);
                 if (!rateLimitResult.success) {
+                    statusCode = 429;
                     return res.status(429).json(rateLimitResult);
                 }
 
                 const tenantResult = await this.checkTenant(req, authResult.tenantId);
                 if (!tenantResult.success) {
+                    statusCode = 403;
                     return res.status(403).json(tenantResult);
                 }
                 const limitsResult = await this.checkDataLimits(req, authResult.tenantId);
                 if (!limitsResult.success) {
+                    statusCode = 429;
                     return res.status(429).json(limitsResult);
                 }
                 const modifiedBody = this.modifyRequest(req, authResult.tenantId);
@@ -90,15 +111,29 @@ export class HttpProxyServer {
                 const mongoResponse = await this.forwardToMongoDB(req, authResult.tenantId, modifiedBody);
 
                 await this.logRequest(req, authResult.tenantId, mongoResponse);
+                statusCode = 200;
                 res.json(mongoResponse);
 
             } catch (error) {
                 console.error('❌ [HTTP Proxy] Error:', error);
-                res.status(500).json({
+                statusCode = error.status || 500;
+                res.status(statusCode).json({
                     success: false,
                     error: 'Proxy error',
                     message: error.message
                 });
+            } finally {
+                // Записываем метрики в Prometheus
+                const duration = Date.now() - startTime;
+                if (this.monitoringService) {
+                    this.monitoringService.recordRequest(
+                        tenantId,
+                        method,
+                        path,
+                        statusCode,
+                        duration
+                    );
+                }
             }
         });
 
@@ -111,6 +146,16 @@ export class HttpProxyServer {
         this.app.get('/proxy/rate-limit-stats', (req, res) => {
             const stats = this.getRateLimitStats();
             res.json(stats);
+        });
+
+        // Prometheus metrics endpoint
+        this.app.get('/metrics', async (req, res) => {
+            try {
+                res.set('Content-Type', register.contentType);
+                res.end(await register.metrics());
+            } catch (error) {
+                res.status(500).end(error);
+            }
         });
 
         // Периодическая очистка старых данных rate limiting (каждые 5 минут)
@@ -291,8 +336,27 @@ export class HttpProxyServer {
             console.log('💾 [Limits] DATA SIZE:');
             console.log(`   Current: ${currentUsage.dataSizeKB} KB / ${currentLimits.maxDataSizeKB} KB`);
             console.log(`   After: ${currentUsage.dataSizeKB + dataSize} KB / ${currentLimits.maxDataSizeKB} KB`);
-            console.log(`   Remaining: ${currentLimits.maxDataSizeKB - currentUsage.dataSizeKB} KB`);
+            const remainingDataSize = currentLimits.maxDataSizeKB - currentUsage.dataSizeKB;
+            console.log(`   Remaining: ${remainingDataSize} KB`);
+            
+            // Предупреждение о приближении лимита размера данных
+            const dataSizeUsagePercent = (currentUsage.dataSizeKB / currentLimits.maxDataSizeKB) * 100;
+            const remainingDataSizePercent = (remainingDataSize / currentLimits.maxDataSizeKB) * 100;
+            if (remainingDataSizePercent <= 10) {
+                console.log(`   ⚠️  [WARNING] CRITICAL: Data size limit almost reached! Only ${remainingDataSizePercent.toFixed(1)}% remaining (${remainingDataSize} KB)`);
+            } else if (remainingDataSizePercent <= 20) {
+                console.log(`   ⚠️  [WARNING] Data size limit approaching! Only ${remainingDataSizePercent.toFixed(1)}% remaining (${remainingDataSize} KB)`);
+            }
             console.log('');
+
+            // Предупреждение о приближении лимита документов
+            const remainingDocuments = currentLimits.maxDocuments - currentUsage.documentsCount;
+            const remainingDocumentsPercent = (remainingDocuments / currentLimits.maxDocuments) * 100;
+            if (remainingDocumentsPercent <= 10) {
+                console.log(`⚠️  [WARNING] CRITICAL: Documents limit almost reached! Only ${remainingDocumentsPercent.toFixed(1)}% remaining (${remainingDocuments} documents)`);
+            } else if (remainingDocumentsPercent <= 20) {
+                console.log(`⚠️  [WARNING] Documents limit approaching! Only ${remainingDocumentsPercent.toFixed(1)}% remaining (${remainingDocuments} documents)`);
+            }
 
             // 3️⃣ ВЫПОЛНИТЬ проверку
             const context = {

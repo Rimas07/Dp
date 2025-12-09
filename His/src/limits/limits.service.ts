@@ -409,7 +409,15 @@ export class LimitsService {
     }
 
     async updateUsage(tenantId: string, docsCount: number, dataSizeKB: number): Promise<void> {
-        if (docsCount < 0 || dataSizeKB < 0) {
+        // Получаем текущее использование
+        const currentUsage = await this.usageModel.findOne({ tenantId }).exec() ||
+            await this.usageModel.create({ tenantId, documentsCount: 0, dataSizeKB: 0, queriesCount: 0 });
+
+        // Проверяем, что итоговые значения не станут отрицательными
+        const newDocsCount = currentUsage.documentsCount + docsCount;
+        const newDataSizeKB = currentUsage.dataSizeKB + dataSizeKB;
+
+        if (newDocsCount < 0 || newDataSizeKB < 0) {
             throw new ForbiddenException('Usage values cannot be negative');
         }
 

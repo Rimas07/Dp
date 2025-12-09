@@ -37,7 +37,7 @@ export default class UserDto {
   
   @IsNotEmpty({ message: 'Password is required' })
   @IsString({ message: 'Password must be a string' })
-  @MinLength(1, { message: 'Password cannot be empty' })
+  @MinLength(6, { message: 'Password must be at least 6 characters' })
   @MaxLength(128, { message: 'The password must not exceed 128 characters' })
   password: string;
 }

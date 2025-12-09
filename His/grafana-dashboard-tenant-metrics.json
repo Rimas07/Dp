@@ -1,0 +1,246 @@
+{
+  "dashboard": {
+    "title": "HIS - Tenant Metrics Dashboard",
+    "tags": ["his", "tenant", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Requests by Tenant",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{tenant_id=\"$tenant_id\"}[5m])) by (tenant_id, method, path)",
+            "legendFormat": "{{method}} {{path}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "orientation": "auto"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Request Count by Tenant (Last Hour)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum(increase(http_requests_total{tenant_id=\"$tenant_id\"}[1h])) by (method, path)",
+            "legendFormat": "{{method}} {{path}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Requests"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Request Duration by Tenant",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{tenant_id=\"$tenant_id\"}[5m])) by (le, method, path))",
+            "legendFormat": "p95 - {{method}} {{path}}",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{tenant_id=\"$tenant_id\"}[5m])) by (le, method, path))",
+            "legendFormat": "p50 - {{method}} {{path}}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Duration"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Requests by Method and Path",
+        "type": "table",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{tenant_id=\"$tenant_id\"}[5m])) by (method, path, status_code)",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true
+              },
+              "indexByName": {
+                "method": 0,
+                "path": 1,
+                "status_code": 2,
+                "Value": 3
+              },
+              "renameByName": {
+                "Value": "Requests/sec"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Limit Violations by Tenant",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "sum(increase(limit_violations_total{tenant_id=\"$tenant_id\"}[5m])) by (limit_type)",
+            "legendFormat": "{{limit_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Violations"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Resource Usage by Tenant",
+        "type": "gauge",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "tenant_resource_usage{tenant_id=\"$tenant_id\"}",
+            "legendFormat": "{{resource_type}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 70,
+                "color": "yellow"
+              },
+              {
+                "value": 90,
+                "color": "red"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Top Endpoints by Request Count",
+        "type": "bargauge",
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 24
+        },
+        "targets": [
+          {
+            "expr": "topk(10, sum(rate(http_requests_total{tenant_id=\"$tenant_id\"}[5m])) by (path))",
+            "legendFormat": "{{path}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "tenant_id",
+          "type": "query",
+          "label": "Tenant ID",
+          "datasource": "Prometheus",
+          "query": "label_values(http_requests_total, tenant_id)",
+          "refresh": 1,
+          "regex": "",
+          "sort": 1,
+          "multi": false,
+          "includeAll": false,
+          "current": {
+            "text": "Select tenant",
+            "value": "$__all"
+          }
+        }
+      ]
+    },
+    "annotations": {
+      "list": []
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "links": [],
+    "liveNow": false,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "weekStart": ""
+  }
+}
+

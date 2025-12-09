@@ -7,6 +7,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { MonitoringService } from './monitoring/monitoring.service';
 import { MonitoringInterceptor } from './monitoring/monitoring.interceptor';
+import { ProxyService } from './proxy/proxy.service';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -43,5 +44,15 @@ async function bootstrap() {
   logger.log(`📚 API Documentation available at: http://localhost:${port}/api`);
   logger.log(`🗄️  Database: ${configService.get<string>('database.connectionString')}`);
   logger.log(`🐰 RabbitMQ: ${configService.get<string>('rabbitmq.url')} (audit logs)`);
+  
+  // Автоматический запуск HTTP Proxy сервера на порту 3001
+  try {
+    const proxyService = app.get(ProxyService);
+    proxyService.startProxyServer(3001);
+    logger.log(`🚀 HTTP Proxy Server started on: http://localhost:3001`);
+    logger.log(`📡 MongoDB Proxy: http://localhost:3001/mongo/*path`);
+  } catch (error) {
+    logger.warn(`⚠️  Failed to start HTTP Proxy Server: ${error.message}`);
+  }
 }
 bootstrap();

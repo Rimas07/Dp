@@ -8,6 +8,7 @@ import { LimitsModule } from '../limits/limits.module';
 import { AuditModule } from '../audit/audit.module';
 import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
+import { MonitoringModule } from '../monitoring/monitoring.module';
 
 @Module({
     imports: [
@@ -17,6 +18,7 @@ import { JwtModule } from '@nestjs/jwt';
         LimitsModule,
         AuditModule,
         UsersModule,
+        MonitoringModule,
         JwtModule // JwtModule уже глобальный, но явно импортируем для ясности
     ],
     controllers: [ProxyController],

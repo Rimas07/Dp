@@ -1,10 +1,6 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
-import { PartialType } from '@nestjs/mapped-types'; //PartialType нужен для Update операций: копирует DTO и делает все поля опциональными, чтобы не писать новый класс вручную.
+import { PartialType } from '@nestjs/mapped-types'; 
 import { ApiProperty } from '@nestjs/swagger';
-
-
-
-
 
 export class LoginCredentialsDto {
     @ApiProperty({
@@ -22,7 +18,7 @@ export class LoginCredentialsDto {
     })// for swag descript
     @IsNotEmpty({ message: 'Password required' })// valid/ checks if pass is not empty 
     @IsString({ message: 'Password must be string' })// valid/ checks if pass is string
-    @MinLength(6, { message: 'Password must be at least 6 characters' })// valid/ checks if pass contains min 6 char otherwise will not proceed
+    @MinLength(6, { message: 'Password must be at least 6 characters' })
     password: string;
 }
 
