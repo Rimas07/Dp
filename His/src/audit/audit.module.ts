@@ -7,22 +7,52 @@ import { AuditEvent } from './audit-event.dto';
 import { AuditEventSchema } from './audit.schema';
 import { AuditController } from './audit.controller';
 import { TenantsModule } from 'src/tenants/tenants.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
     imports: [
+        ConfigModule,
         MongooseModule.forFeature([{ name: AuditEvent.name, schema: AuditEventSchema }]),
         TenantsModule,
-        ClientsModule.register([
+        ClientsModule.registerAsync([
             {
                 name: 'AUDIT_SERVICE',
-                transport: Transport.RMQ,
-                options: {
-                    urls: ['amqp://hisapp:hisapp123@localhost:5672'],
-                    queue: 'audit-queue',
-                    queueOptions: {
-                        durable: true
-                    },
+                imports: [ConfigModule],
+                useFactory: async (configService: ConfigService) => {
+                    const rabbitmqUrl = configService.get<string>('rabbitmq.url');
+                    const queue = configService.get<string>('rabbitmq.queue') || 'audit-queue';
+                    
+                    // Если RabbitMQ URL не указан или это localhost, делаем опциональным подключение
+                    if (!rabbitmqUrl || rabbitmqUrl.includes('localhost')) {
+                        console.log('[AuditModule] RabbitMQ URL not configured or is localhost, RabbitMQ will be optional');
+                        return {
+                            transport: Transport.RMQ,
+                            options: {
+                                urls: [rabbitmqUrl || 'amqp://localhost:5672'],
+                                queue: queue,
+                                queueOptions: {
+                                    durable: true
+                                },
+                                // Не падаем, если не можем подключиться
+                                socketOptions: {
+                                    reconnectTimeInSeconds: 5,
+                                }
+                            },
+                        };
+                    }
+                    
+                    return {
+                        transport: Transport.RMQ,
+                        options: {
+                            urls: [rabbitmqUrl],
+                            queue: queue,
+                            queueOptions: {
+                                durable: true
+                            },
+                        },
+                    };
                 },
+                inject: [ConfigService],
             },
         ]),
     ],

@@ -32,19 +32,31 @@ export class AuditService {
 
     async emit(event: AuditEvent) {
         try {
-            // Сохраняем в базу данных
+            // Сохраняем в базу данных (это работает всегда, даже без RabbitMQ)
             const auditRecord = new this.auditModel(event);
-            await auditRecord.save();
-
+            const savedRecord = await auditRecord.save();
+            
             // Логируем в консоль
             this.logger.log(`📝 Audit: ${event.method} ${event.path} - ${event.statusCode} (${event.userId || 'anonymous'}) [${event.tenantId || 'no-tenant'}]`);
+            this.logger.debug(`💾 Audit event saved to database with ID: ${savedRecord._id}`);
 
-            // Отправляем в RabbitMQ если подключен
+            // Отправляем в RabbitMQ если подключен (опционально)
             if (this.rabbitmqConnected) {
-                this.client.emit('audit-log', event).subscribe();
+                try {
+                    this.client.emit('audit-log', event).subscribe({
+                        error: (err) => {
+                            this.logger.warn('⚠️  Failed to send audit event to RabbitMQ:', err.message);
+                        }
+                    });
+                } catch (rmqError) {
+                    this.logger.warn('⚠️  RabbitMQ emit error (but event saved to DB):', rmqError.message);
+                }
+            } else {
+                this.logger.debug('ℹ️  RabbitMQ not connected, event saved only to database');
             }
         } catch (error) {
-            this.logger.error('Failed to emit audit event:', error.message);
+            this.logger.error(`❌ Failed to emit audit event: ${error.message}`, error.stack);
+            // Не бросаем ошибку, чтобы не ломать основной поток
         }
     }
 }
