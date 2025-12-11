@@ -17,9 +17,9 @@ async function bootstrap() {
   const monitoringService = app.get(MonitoringService);
      app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500', 'http://127.0.0.1:5500'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
+    origin: true, // Разрешаем все источники для облачного деплоя
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID', 'X-TENANT-ID'],
     credentials: true
   });
   const config = new DocumentBuilder()
@@ -37,6 +37,18 @@ async function bootstrap() {
   app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   
+  // Интеграция HTTP Proxy в основное приложение (для работы в облаке)
+  try {
+    const proxyService = app.get(ProxyService);
+    const proxyApp = proxyService.getProxyApp();
+    // Монтируем Express app прокси в основное приложение
+    app.use('/mongo', proxyApp);
+    logger.log(`🚀 HTTP Proxy integrated into main application`);
+    logger.log(`📡 MongoDB Proxy: http://localhost:${configService.get<number>('server.port') || 3000}/mongo/*path`);
+  } catch (error) {
+    logger.warn(`⚠️  Failed to integrate HTTP Proxy: ${error.message}`);
+  }
+
   const port = configService.get<number>('server.port') || 3000;
   await app.listen(port);
   
@@ -44,15 +56,5 @@ async function bootstrap() {
   logger.log(`📚 API Documentation available at: http://localhost:${port}/api`);
   logger.log(`🗄️  Database: ${configService.get<string>('database.connectionString')}`);
   logger.log(`🐰 RabbitMQ: ${configService.get<string>('rabbitmq.url')} (audit logs)`);
-  
-  // Автоматический запуск HTTP Proxy сервера на порту 3001
-  try {
-    const proxyService = app.get(ProxyService);
-    proxyService.startProxyServer(3001);
-    logger.log(`🚀 HTTP Proxy Server started on: http://localhost:3001`);
-    logger.log(`📡 MongoDB Proxy: http://localhost:3001/mongo/*path`);
-  } catch (error) {
-    logger.warn(`⚠️  Failed to start HTTP Proxy Server: ${error.message}`);
-  }
 }
 bootstrap();
