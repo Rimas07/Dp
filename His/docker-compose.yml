@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Основное приложение HIS
   his-app:
     build: .
     ports:
-      - '3000:3000'
+      - "3000:3000"
     environment:
       - PORT=3000
       - DB_CONNECTION_STRING=mongodb://mongodb:27017/his
@@ -23,7 +23,7 @@ services:
     image: mongo:7.0
     container_name: his-mongodb
     ports:
-      - '27017:27017'
+      - "27017:27017"
     environment:
       - MONGO_INITDB_DATABASE=his
     volumes:
@@ -37,8 +37,8 @@ services:
     image: rabbitmq:3.12-management
     container_name: his-rabbitmq
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - "5672:5672"
+      - "15672:15672"
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
@@ -57,7 +57,7 @@ services:
       context: ../producer
       dockerfile: Dockerfile
     ports:
-      - '3001:3000'
+      - "3001:3000"
     environment:
       - PORT=3000
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672

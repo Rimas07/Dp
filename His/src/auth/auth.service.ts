@@ -73,7 +73,7 @@ export class AuthService {
 
 
     async createSecretKeyForNewTenant(tenantId: string) {
-        //Generate Random Secret Key
+        //Generate Random Secret Key via nanoid which is lib for creating unique id
         const jwtSecret = nanoid(128);
 
         const encryptionKey = this.configService.get<string>('security.encryptionSecretKey');
