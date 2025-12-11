@@ -36,6 +36,12 @@ export class ProxyController {
     async proxyToMongoDBDirect(@Req() req: Request, @Res() res: Response, @Body() body: any) {
         try {
             console.log('🔄 [ProxyController] Direct MongoDB request:', req.method, req.path);
+            console.log('📋 [ProxyController] Headers:', {
+                'x-tenant-id': req.headers['x-tenant-id'],
+                'X-TENANT-ID': req.headers['x-tenant-id'],
+                'authorization': req.headers['authorization'] ? 'present' : 'missing',
+                'all-headers': Object.keys(req.headers)
+            });
             await this.proxyService.handleProxyRequest(req, res);
         } catch (error) {
             console.error('❌ [ProxyController] error:', error);
@@ -60,6 +66,12 @@ export class ProxyController {
     async proxyToMongoDB(@Req() req: Request, @Res() res: Response, @Body() body: any) {
         try {
             console.log('🔄 [ProxyController] Intercepted request to MongoDB:', req.method, req.path, req.params);
+            console.log('📋 [ProxyController] Headers:', {
+                'x-tenant-id': req.headers['x-tenant-id'],
+                'X-TENANT-ID': req.headers['x-tenant-id'],
+                'authorization': req.headers['authorization'] ? 'present' : 'missing',
+                'all-headers': Object.keys(req.headers)
+            });
 
             // Используем прямой метод обработки запроса
             await this.proxyService.handleProxyRequest(req, res);

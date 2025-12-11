@@ -166,8 +166,18 @@ export class HttpProxyServer {
 
     private async checkAuthentication(req: express.Request) {
         try {
+            // Проверяем что headers существуют
+            if (!req.headers) {
+                console.error('❌ [Proxy] req.headers is undefined');
+                return { success: false, error: 'Request headers are missing' };
+            }
+
             // Вариант 1: Проверяем X-Tenant-ID заголовок (для тестирования)
-            const headerTenantId = req.headers['x-tenant-id'] as string;
+            // Express автоматически приводит заголовки к нижнему регистру, но проверим все варианты
+            const headerTenantId = (req.headers['x-tenant-id'] || 
+                                   req.headers['X-TENANT-ID'] || 
+                                   req.headers['X-Tenant-ID']) as string;
+            
             if (headerTenantId) {
                 console.log(`🔍 [Proxy] Uses tenantId from header: ${headerTenantId}`);
                 // Проверяем что тенант существует
@@ -179,7 +189,11 @@ export class HttpProxyServer {
                         userId: 'from-header',
                         source: 'header'
                     };
+                } else {
+                    console.log(`⚠️ [Proxy] Tenant not found: ${headerTenantId}`);
                 }
+            } else {
+                console.log(`🔍 [Proxy] No X-TENANT-ID header found. Available headers:`, Object.keys(req.headers));
             }
 
             // Вариант 2: Используем JWT токен
