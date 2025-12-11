@@ -41,6 +41,21 @@ async function bootstrap() {
   logger.log(`🚀 HTTP Proxy available via ProxyController`);
   logger.log(`📡 MongoDB Proxy: http://localhost:${configService.get<number>('server.port') || 3000}/proxy/mongo/*path`);
 
+  // Автоматический запуск отдельного HTTP Proxy сервера на порту 3001 для локальной разработки
+  // В облаке (Render.com) используем только встроенный прокси через ProxyController
+  const isLocalDevelopment = !process.env.RENDER || process.env.NODE_ENV === 'development';
+  if (isLocalDevelopment) {
+    try {
+      const proxyService = app.get(ProxyService);
+      proxyService.startProxyServer(3001);
+      logger.log(`🚀 HTTP Proxy Server started on port 3001 for local development`);
+      logger.log(`📡 Local MongoDB Proxy: http://localhost:3001/mongo/*path`);
+    } catch (error) {
+      logger.warn(`⚠️  Failed to start HTTP Proxy server on port 3001: ${error.message}`);
+      logger.warn(`ℹ️  You can still use the proxy via ProxyController on port ${configService.get<number>('server.port') || 3000}`);
+    }
+  }
+
   const port = configService.get<number>('server.port') || 3000;
   await app.listen(port);
   
