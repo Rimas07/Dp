@@ -815,17 +815,31 @@ export class HttpProxyServer {
             fullPath = fullPath.replace('/proxy/mongo', '/mongo');
         }
         const path = fullPath;
-        // Создаем модифицированный объект запроса с правильным path
-        const modifiedReq = { ...req, path: fullPath.split('?')[0] } as express.Request;
+        // Сохраняем оригинальный path и устанавливаем правильный путь для обработки
+        const originalPath = req.path;
+        // Используем Object.defineProperty для установки path без создания нового объекта
+        Object.defineProperty(req, 'path', {
+            value: fullPath.split('?')[0],
+            writable: true,
+            configurable: true
+        });
         let tenantId = 'unknown';
         let statusCode = 500;
 
         try {
-            console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, path, '| path:', modifiedReq.path);
+            console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, path, '| path:', req.path);
+            console.log('📋 [HTTP Proxy] Headers check:', {
+                'headers-exists': !!req.headers,
+                'x-tenant-id': req.headers?.['x-tenant-id'],
+                'X-TENANT-ID': req.headers?.['X-TENANT-ID'],
+                'all-header-keys': req.headers ? Object.keys(req.headers) : 'no headers'
+            });
 
-            const authResult = await this.checkAuthentication(modifiedReq);
+            const authResult = await this.checkAuthentication(req);
             if (!authResult.success || !authResult.tenantId) {
                 statusCode = 401;
+                // Восстанавливаем оригинальный path перед возвратом
+                Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
                 return res.status(401).json(authResult);
             }
 
@@ -835,36 +849,43 @@ export class HttpProxyServer {
             const rateLimitResult = this.checkRateLimit(authResult.tenantId);
             if (!rateLimitResult.success) {
                 statusCode = 429;
+                Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
                 return res.status(429).json(rateLimitResult);
             }
 
-            const tenantResult = await this.checkTenant(modifiedReq, authResult.tenantId);
+            const tenantResult = await this.checkTenant(req, authResult.tenantId);
             if (!tenantResult.success) {
                 statusCode = 403;
+                Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
                 return res.status(403).json(tenantResult);
             }
-            const limitsResult = await this.checkDataLimits(modifiedReq, authResult.tenantId);
+            const limitsResult = await this.checkDataLimits(req, authResult.tenantId);
             if (!limitsResult.success) {
                 statusCode = 429;
+                Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
                 return res.status(429).json(limitsResult);
             }
-            const modifiedBody = this.modifyRequest(modifiedReq, authResult.tenantId);
+            const modifiedBody = this.modifyRequest(req, authResult.tenantId);
 
-            const mongoResponse = await this.forwardToMongoDB(modifiedReq, authResult.tenantId, modifiedBody);
+            const mongoResponse = await this.forwardToMongoDB(req, authResult.tenantId, modifiedBody);
 
-            await this.logRequest(modifiedReq, authResult.tenantId, mongoResponse);
+            await this.logRequest(req, authResult.tenantId, mongoResponse);
             statusCode = 200;
             res.json(mongoResponse);
 
         } catch (error) {
             console.error('❌ [HTTP Proxy] Error:', error);
             statusCode = error.status || 500;
+            // Восстанавливаем оригинальный path
+            Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
             res.status(statusCode).json({
                 success: false,
                 error: 'Proxy error',
                 message: error.message
             });
         } finally {
+            // Восстанавливаем оригинальный path в finally
+            Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
             // Записываем метрики в Prometheus
             const duration = Date.now() - startTime;
             if (this.monitoringService) {
