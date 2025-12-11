@@ -5,14 +5,14 @@ import { ProxyService } from './proxy.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @ApiTags('Proxy')
-@Controller('proxy')
+@Controller()
 export class ProxyController {
     constructor(private readonly proxyService: ProxyService) { }
 
     /**
      * Health check 
      */
-    @Get('health')
+    @Get('proxy/health')
     @ApiOperation({
         summary: 'Proxy health check',
         description: 'Checking the Status of the  Proxy'
@@ -25,25 +25,54 @@ export class ProxyController {
         return this.proxyService.health();
     }
 
+    /**
+     * MongoDB Proxy через /mongo/*path (для совместимости с localhost:3001)
+     */
     @Post('mongo/*path')
+    @ApiOperation({
+        summary: 'HTTP Proxy to MongoDB (direct path)',
+        description: 'MongoDB Proxy через /mongo/*path'
+    })
+    async proxyToMongoDBDirect(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+        try {
+            console.log('🔄 [ProxyController] Direct MongoDB request:', req.method, req.path);
+            await this.proxyService.handleProxyRequest(req, res);
+        } catch (error) {
+            console.error('❌ [ProxyController] error:', error);
+            if (!res.headersSent) {
+                res.status(500).json({
+                    success: false,
+                    error: 'Proxy controller error',
+                    message: error.message
+                });
+            }
+        }
+    }
+
+    /**
+     * MongoDB Proxy через /proxy/mongo/*path
+     */
+    @Post('proxy/mongo/*path')
     @ApiOperation({
         summary: 'HTTP Proxy to MongoDB',
         description: 'Настоящий HTTP Proxy который перехватывает и пересылает запросы в MongoDB'
     })
     async proxyToMongoDB(@Req() req: Request, @Res() res: Response, @Body() body: any) {
         try {
-            console.log('🔄 [ProxyController] Intercepted request to MongoDB:', req.method, req.path);
+            console.log('🔄 [ProxyController] Intercepted request to MongoDB:', req.method, req.path, req.params);
 
-            const proxyApp = this.proxyService.getProxyApp();
-            proxyApp(req, res);
+            // Используем прямой метод обработки запроса
+            await this.proxyService.handleProxyRequest(req, res);
 
         } catch (error) {
             console.error('❌ [ProxyController] error:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Proxy controller error',
-                message: error.message
-            });
+            if (!res.headersSent) {
+                res.status(500).json({
+                    success: false,
+                    error: 'Proxy controller error',
+                    message: error.message
+                });
+            }
         }
     }
 
@@ -54,7 +83,7 @@ export class ProxyController {
      * - X-Tenant-ID header
      * - Authorization: Bearer <token>
      */
-    @Post('test')
+    @Post('proxy/test')
     @ApiOperation({
         summary: 'Test Proxy validation',
         description: 'Test function for checking the operation of Data-Limiting Proxy'
@@ -95,7 +124,7 @@ export class ProxyController {
         }
     }
 
-    @Post('start')
+    @Post('proxy/start')
     @ApiOperation({
         summary: 'Start HTTP Proxy Server',
         description: 'Запускает отдельный HTTP Proxy сервер на порту 3001'

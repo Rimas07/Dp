@@ -37,17 +37,9 @@ async function bootstrap() {
   app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   
-  // Интеграция HTTP Proxy в основное приложение (для работы в облаке)
-  try {
-    const proxyService = app.get(ProxyService);
-    const proxyApp = proxyService.getProxyApp();
-    // Монтируем Express app прокси в основное приложение
-    app.use('/mongo', proxyApp);
-    logger.log(`🚀 HTTP Proxy integrated into main application`);
-    logger.log(`📡 MongoDB Proxy: http://localhost:${configService.get<number>('server.port') || 3000}/mongo/*path`);
-  } catch (error) {
-    logger.warn(`⚠️  Failed to integrate HTTP Proxy: ${error.message}`);
-  }
+  // HTTP Proxy доступен через ProxyController на /proxy/mongo/*path
+  logger.log(`🚀 HTTP Proxy available via ProxyController`);
+  logger.log(`📡 MongoDB Proxy: http://localhost:${configService.get<number>('server.port') || 3000}/proxy/mongo/*path`);
 
   const port = configService.get<number>('server.port') || 3000;
   await app.listen(port);

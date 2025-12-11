@@ -787,4 +787,81 @@ export class HttpProxyServer {
     public getApp() {
         return this.app;
     }
+
+    /**
+     * Публичный метод для обработки запросов напрямую (для использования в NestJS контроллерах)
+     */
+    public async handleRequest(req: express.Request, res: express.Response) {
+        const startTime = Date.now();
+        const method = req.method;
+        // Используем originalUrl для получения полного пути, включая query параметры
+        let fullPath = req.originalUrl || req.url;
+        // Если путь начинается с /proxy/mongo, убираем префикс /proxy
+        if (fullPath.startsWith('/proxy/mongo')) {
+            fullPath = fullPath.replace('/proxy/mongo', '/mongo');
+        }
+        const path = fullPath;
+        // Создаем модифицированный объект запроса с правильным path
+        const modifiedReq = { ...req, path: fullPath.split('?')[0] } as express.Request;
+        let tenantId = 'unknown';
+        let statusCode = 500;
+
+        try {
+            console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, path, '| path:', modifiedReq.path);
+
+            const authResult = await this.checkAuthentication(modifiedReq);
+            if (!authResult.success || !authResult.tenantId) {
+                statusCode = 401;
+                return res.status(401).json(authResult);
+            }
+
+            tenantId = authResult.tenantId;
+
+            // 2️⃣ Rate limiting по tenantId
+            const rateLimitResult = this.checkRateLimit(authResult.tenantId);
+            if (!rateLimitResult.success) {
+                statusCode = 429;
+                return res.status(429).json(rateLimitResult);
+            }
+
+            const tenantResult = await this.checkTenant(modifiedReq, authResult.tenantId);
+            if (!tenantResult.success) {
+                statusCode = 403;
+                return res.status(403).json(tenantResult);
+            }
+            const limitsResult = await this.checkDataLimits(modifiedReq, authResult.tenantId);
+            if (!limitsResult.success) {
+                statusCode = 429;
+                return res.status(429).json(limitsResult);
+            }
+            const modifiedBody = this.modifyRequest(modifiedReq, authResult.tenantId);
+
+            const mongoResponse = await this.forwardToMongoDB(modifiedReq, authResult.tenantId, modifiedBody);
+
+            await this.logRequest(modifiedReq, authResult.tenantId, mongoResponse);
+            statusCode = 200;
+            res.json(mongoResponse);
+
+        } catch (error) {
+            console.error('❌ [HTTP Proxy] Error:', error);
+            statusCode = error.status || 500;
+            res.status(statusCode).json({
+                success: false,
+                error: 'Proxy error',
+                message: error.message
+            });
+        } finally {
+            // Записываем метрики в Prometheus
+            const duration = Date.now() - startTime;
+            if (this.monitoringService) {
+                this.monitoringService.recordRequest(
+                    tenantId,
+                    method,
+                    path,
+                    statusCode,
+                    duration
+                );
+            }
+        }
+    }
 }

@@ -49,6 +49,10 @@ export class ProxyService {
         return this.httpProxyServer.getApp();
     }
 
+    public async handleProxyRequest(req: any, res: any) {
+        return this.httpProxyServer.handleRequest(req, res);
+    }
+
     public async validateToken(token: string) {
         try {
             const secretKey = await this.authService.fetchAccessTokenSecretSigningKey('default');
