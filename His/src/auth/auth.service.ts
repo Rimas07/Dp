@@ -31,7 +31,7 @@ export class AuthService {
         if (!passwordMatch) {
             throw new UnauthorizedException('Wrong credentials');
         }
-
+// 
         const secretKey = await this.fetchAccessTokenSecretSigningKey(user.tenantId)
 
         //     // const encryptionKey = this.configService.get<string>('security.encryptionSecretKey');
@@ -54,7 +54,7 @@ export class AuthService {
                 userId: user._id,
                 tenantId: user.tenantId  
             },
-            { secret: secretKey, expiresIn: '1h' }
+            { secret: secretKey, expiresIn: '15m' }
         );
         return { accessToken, tenantId: user.tenantId }
         //     // Return user info and token
@@ -157,3 +157,10 @@ export class AuthService {
 
 
 }
+/*
+Injectable — делает класс доступным для использования в других местах проги
+UnauthorizedException — ошибка «доступ запрещен» 
+ConfigService - настройки 
+nanoid -  генератор случайных строк
+encrypt/decrypt — шифрование/расшифровка
+*/
