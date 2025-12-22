@@ -21,11 +21,16 @@ export class AuditInterceptor implements NestInterceptor {
         const tenantId = (req as any).tenantId || 'unknown';
         const userId = (req as any).user?.id;
 
+        // Служебные эндпоинты, которые не нужно логировать в audit
+        const ignoredPaths = ['/metrics', '/proxy/metrics', '/proxy/health', '/proxy/rate-limit-stats', '/health'];
+        const requestPath = req.originalUrl || req.url || '';
+        const shouldSkipAudit = ignoredPaths.some(path => requestPath.includes(path));
+
         return next.handle().pipe(
             tap((data) => {
                 const duration = Date.now() - start;
 
-                // Записываем в Prometheus
+                // Записываем в Prometheus (всегда записываем метрики)
                 this.monitoring.recordRequest(
                     tenantId,
                     req.method,
@@ -33,6 +38,11 @@ export class AuditInterceptor implements NestInterceptor {
                     res.statusCode,
                     duration
                 );
+
+                // Пропускаем audit логирование для служебных эндпоинтов
+                if (shouldSkipAudit) {
+                    return;
+                }
 
                 // Оригинальное audit логирование
                 const event: AuditEvent = {
@@ -55,7 +65,7 @@ export class AuditInterceptor implements NestInterceptor {
             catchError((err) => {
                 const duration = Date.now() - start;
 
-                // Записываем ошибку в Prometheus
+                // Записываем ошибку в Prometheus (всегда записываем метрики)
                 this.monitoring.recordRequest(
                     tenantId,
                     req.method,
@@ -64,24 +74,27 @@ export class AuditInterceptor implements NestInterceptor {
                     duration
                 );
 
-                // Оригинальное audit логирование ошибки
-                const event: AuditEvent = {
-                    timestamp: new Date().toISOString(),
-                    level: 'error',
-                    requestId: req.headers['x-request-id'] as string,
-                    userId,
-                    tenantId,
-                    method: req.method,
-                    path: req.originalUrl || req.url,
-                    statusCode: (err as any)?.status || 500,
-                    durationMs: duration,
-                    ip: req.ip,
-                    userAgent: req.headers['user-agent'],
-                    message: 'HTTP request failed',
-                    requestBody: sanitize(req.body),
-                    error: { name: err.name, message: err.message },
-                };
-                this.audit.emit(event);
+                // Пропускаем audit логирование для служебных эндпоинтов
+                if (!shouldSkipAudit) {
+                    // Оригинальное audit логирование ошибки
+                    const event: AuditEvent = {
+                        timestamp: new Date().toISOString(),
+                        level: 'error',
+                        requestId: req.headers['x-request-id'] as string,
+                        userId,
+                        tenantId,
+                        method: req.method,
+                        path: req.originalUrl || req.url,
+                        statusCode: (err as any)?.status || 500,
+                        durationMs: duration,
+                        ip: req.ip,
+                        userAgent: req.headers['user-agent'],
+                        message: 'HTTP request failed',
+                        requestBody: sanitize(req.body),
+                        error: { name: err.name, message: err.message },
+                    };
+                    this.audit.emit(event);
+                }
                 return throwError(() => err);
             }),
         );

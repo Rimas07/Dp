@@ -627,6 +627,15 @@ export class HttpProxyServer {
 
     private async logRequest(req: express.Request, tenantId: string, response: any) {
         try {
+            // Игнорируем запросы к служебным эндпоинтам (metrics, health, rate-limit-stats)
+            const ignoredPaths = ['/metrics', '/proxy/metrics', '/proxy/health', '/proxy/rate-limit-stats'];
+            const requestPath = req.path || req.url;
+
+            if (ignoredPaths.some(path => requestPath.includes(path))) {
+                console.log(`🔇 [Audit] Skipping audit log for service endpoint: ${requestPath}`);
+                return;
+            }
+
             await this.auditService.emit({
                 timestamp: new Date().toISOString(),
                 level: 'info',
