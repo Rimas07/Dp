@@ -68,8 +68,10 @@ export class HttpProxyServer {
         // Используем middleware для всех путей, начинающихся с /mongo/
         this.app.use('/mongo', globalLimiter);
 
-        // Создаем обработчик для всех методов
-        const mongoHandler = async (req: express.Request, res: express.Response) => {
+        // Обрабатываем все HTTP методы для путей /mongo/*
+        // Используем use() для обработки всех подпутей /mongo/*
+        // Express автоматически удаляет префикс '/mongo' из req.path
+        this.app.use('/mongo', async (req, res) => {
             const startTime = Date.now();
             const method = req.method;
             const path = req.originalUrl || req.url;
@@ -77,7 +79,7 @@ export class HttpProxyServer {
             let statusCode = 500;
 
             try {
-                // Убрали verbose логи - запрос обрабатывается автоматически
+                console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, req.originalUrl || req.url);
 
                 const authResult = await this.checkAuthentication(req);
                 if (!authResult.success || !authResult.tenantId) {
@@ -133,12 +135,7 @@ export class HttpProxyServer {
                     );
                 }
             }
-        };
-
-        // Обрабатываем все HTTP методы для путей /mongo/*
-        // Используем use() для обработки всех подпутей /mongo/*
-        // Express автоматически удаляет префикс '/mongo' из req.path
-        this.app.use('/mongo', mongoHandler);
+        });
 
         // Health check
         this.app.get('/proxy/health', (req, res) => {
@@ -177,63 +174,13 @@ export class HttpProxyServer {
 
             // Вариант 1: Проверяем X-Tenant-ID заголовок (для тестирования)
             // Express автоматически приводит заголовки к нижнему регистру, но проверим все варианты
-            const headerTenantId = (req.headers['x-tenant-id'] ||
-                req.headers['X-TENANT-ID'] ||
-                req.headers['X-Tenant-ID']) as string;
-
-            // Вариант 2: Используем JWT токен
-            const authHeader = req.headers.authorization;
-            let token: string | null = null;
-            if (authHeader && authHeader.startsWith('Bearer ')) {
-                token = authHeader.substring(7);
-            }
-
-            // Если предоставлен токен, проверяем его валидность через AuthService.validateToken
-            if (token) {
-                const validationResult = await this.authService.validateToken(token);
-                if (!validationResult.success) {
-                    console.warn(`⚠️ [Proxy] Token validation failed: ${validationResult.error}`);
-                    return { 
-                        success: false, 
-                        error: validationResult.error || 'Invalid or expired token' 
-                    };
-                }
-
-                const tokenTenantId = validationResult.tenantId;
-                const userId = validationResult.userId;
-
-                // Если есть X-Tenant-ID, проверяем соответствие
-                if (headerTenantId && tokenTenantId !== headerTenantId) {
-                    console.warn(`⚠️ [Proxy] Tenant mismatch: token tenantId=${tokenTenantId}, header tenantId=${headerTenantId}`);
-                    return { 
-                        success: false, 
-                        error: 'Token tenant mismatch. Token tenantId does not match X-TENANT-ID header' 
-                    };
-                }
-
-                // Используем tenantId из токена, если X-Tenant-ID не предоставлен
-                const finalTenantId = (headerTenantId || tokenTenantId) as string;
-
-                // Проверяем что тенант существует
-                const tenant = await this.tenantsService.getTenantById(finalTenantId);
-                if (!tenant) {
-                    console.warn(`⚠️ [Proxy] Tenant not found: ${finalTenantId}`);
-                    return { 
-                        success: false, 
-                        error: `Tenant ${finalTenantId} does not exist` 
-                    };
-                }
-
-                return {
-                    success: true,
-                    tenantId: finalTenantId,
-                    userId: userId,
-                    source: 'jwt-token-validated'
-                };
-            }
-
-            // Если токен не предоставлен, но есть X-Tenant-ID, используем его (для обратной совместимости)
+            const headerTenantId = (req.headers['x-tenant-id'] || 
+                                   req.headers['X-TENANT-ID'] || 
+                                   req.headers['X-Tenant-ID']) as string;
+            
             if (headerTenantId) {
+                console.log(`🔍 [Proxy] Uses tenantId from header: ${headerTenantId}`);
+                // Проверяем что тенант существует
                 const tenant = await this.tenantsService.getTenantById(headerTenantId);
                 if (tenant) {
                     return {
@@ -243,11 +190,50 @@ export class HttpProxyServer {
                         source: 'header'
                     };
                 } else {
-                    console.warn(`⚠️ [Proxy] Tenant not found: ${headerTenantId}`);
+                    console.log(`⚠️ [Proxy] Tenant not found: ${headerTenantId}`);
                 }
+            } else {
+                console.log(`🔍 [Proxy] No X-TENANT-ID header found. Available headers:`, Object.keys(req.headers));
             }
 
-            return { success: false, error: 'No valid token provided. Use Authorization: Bearer <token> or X-Tenant-ID header' };
+            // Вариант 2: Используем JWT токен
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return { success: false, error: 'No valid token provided. Use Authorization: Bearer <token> or X-Tenant-ID header' };
+            }
+
+            const token = authHeader.substring(7);
+
+           
+
+            // Вариант 3: Реальный JWT токен
+            try {
+                // Получаем userId из токена (без проверки секрета пока)
+                const decoded = this.jwtService.decode(token) as any;
+                if (decoded && decoded.userId) {
+                    // Получаем пользователя из БД чтобы узнать его tenantId
+                    const user = await this.usersService.getUserById(decoded.userId);
+                    if (user && user.tenantId) {
+                        console.log(`🔍 [Proxy] The tenantId from the JWT token is used: ${user.tenantId}`);
+
+                        // Проверяем валидность токена с правильным секретом
+                        const secret = await this.authService.fetchAccessTokenSecretSigningKey(user.tenantId);
+                        await this.jwtService.verify(token, { secret });
+
+                        return {
+                            success: true,
+                            tenantId: user.tenantId,
+                            userId: decoded.userId,
+                            source: 'jwt-token'
+                        };
+                    }
+                }
+            } catch (jwtError) {
+                console.log(`⚠️ [Proxy] JWT token validation error: ${jwtError.message}`);
+                // Продолжаем искать другие варианты
+            }
+
+            return { success: false, error: 'Invalid token. Provide valid JWT token or X-Tenant-ID header' };
         } catch (error) {
             console.error('❌ [Proxy] Authentication error:', error);
             return { success: false, error: `Authentication failed: ${error.message}` };
@@ -302,7 +288,7 @@ export class HttpProxyServer {
             };
             this.tenantRequestCounts.set(tenantId, tenantData);
 
-            // Убрали verbose логи - окно создается автоматически
+            console.log(`🚦 [Rate Limit] New window for tenant ${tenantId}: 1/${maxRequestsPerWindow} requests`);
             return { success: true };
         }
 
@@ -312,15 +298,11 @@ export class HttpProxyServer {
         // Вычисляем оставшееся время до сброса
         const timeUntilReset = Math.ceil((tenantData.resetTime - now) / 1000);
 
-        // Логируем только если приближаемся к лимиту (80%+)
-        const usagePercent = (tenantData.count / maxRequestsPerWindow) * 100;
-        if (usagePercent >= 80) {
-            console.warn(`⚠️ [Rate Limit] Tenant ${tenantId}: ${tenantData.count}/${maxRequestsPerWindow} requests (${usagePercent.toFixed(0)}%)`);
-        }
+        console.log(`🚦 [Rate Limit] Tenant ${tenantId}: ${tenantData.count}/${maxRequestsPerWindow} requests`);
 
         // Проверяем лимит
         if (tenantData.count > maxRequestsPerWindow) {
-            console.error(`❌ [Rate Limit] BLOCKED! Tenant ${tenantId} exceeded limit of ${maxRequestsPerWindow} requests per minute`);
+            console.log(`❌ [Rate Limit] BLOCKED! Tenant ${tenantId} exceeded limit of ${maxRequestsPerWindow} requests per minute`);
             return {
                 success: false,
                 error: 'Rate limit exceeded',
@@ -353,27 +335,41 @@ export class HttpProxyServer {
             const operation = this.detectOperation(req);
             const dataSize = this.calculateDataSize(req);
 
-            // Убрали verbose логи - проверка выполняется автоматически
-            // Логируем только предупреждения о приближении лимитов
+            // 2️⃣ ЛОГИРОВАТЬ ДО операции
+            console.log(`🔍 [Limits] Checking limits for tenant: ${tenantId}`);
+            console.log(`📊 [Limits] Operation: ${operation.type}`);
+            console.log(`   Adding: ${operation.documents} documents, ${dataSize} KB`);
+            console.log('');
 
+            console.log('📈 [Limits] DOCUMENTS:');
+            console.log(`   Current: ${currentUsage.documentsCount}/${currentLimits.maxDocuments}`);
+            console.log(`   After: ${currentUsage.documentsCount + operation.documents}/${currentLimits.maxDocuments}`);
+            console.log(`   Remaining: ${currentLimits.maxDocuments - currentUsage.documentsCount} documents`);
+            console.log('');
+
+            console.log('💾 [Limits] DATA SIZE:');
+            console.log(`   Current: ${currentUsage.dataSizeKB} KB / ${currentLimits.maxDataSizeKB} KB`);
+            console.log(`   After: ${currentUsage.dataSizeKB + dataSize} KB / ${currentLimits.maxDataSizeKB} KB`);
             const remainingDataSize = currentLimits.maxDataSizeKB - currentUsage.dataSizeKB;
+            console.log(`   Remaining: ${remainingDataSize} KB`);
+            
+            // Предупреждение о приближении лимита размера данных
             const dataSizeUsagePercent = (currentUsage.dataSizeKB / currentLimits.maxDataSizeKB) * 100;
             const remainingDataSizePercent = (remainingDataSize / currentLimits.maxDataSizeKB) * 100;
-
-            // Предупреждение о приближении лимита размера данных
             if (remainingDataSizePercent <= 10) {
-                console.warn(`⚠️  [Limits] CRITICAL: Data size limit almost reached for tenant ${tenantId}! Only ${remainingDataSizePercent.toFixed(1)}% remaining (${remainingDataSize} KB)`);
+                console.log(`   ⚠️  [WARNING] CRITICAL: Data size limit almost reached! Only ${remainingDataSizePercent.toFixed(1)}% remaining (${remainingDataSize} KB)`);
             } else if (remainingDataSizePercent <= 20) {
-                console.warn(`⚠️  [Limits] Data size limit approaching for tenant ${tenantId}! Only ${remainingDataSizePercent.toFixed(1)}% remaining (${remainingDataSize} KB)`);
+                console.log(`   ⚠️  [WARNING] Data size limit approaching! Only ${remainingDataSizePercent.toFixed(1)}% remaining (${remainingDataSize} KB)`);
             }
+            console.log('');
 
             // Предупреждение о приближении лимита документов
             const remainingDocuments = currentLimits.maxDocuments - currentUsage.documentsCount;
             const remainingDocumentsPercent = (remainingDocuments / currentLimits.maxDocuments) * 100;
             if (remainingDocumentsPercent <= 10) {
-                console.warn(`⚠️  [Limits] CRITICAL: Documents limit almost reached for tenant ${tenantId}! Only ${remainingDocumentsPercent.toFixed(1)}% remaining (${remainingDocuments} documents)`);
+                console.log(`⚠️  [WARNING] CRITICAL: Documents limit almost reached! Only ${remainingDocumentsPercent.toFixed(1)}% remaining (${remainingDocuments} documents)`);
             } else if (remainingDocumentsPercent <= 20) {
-                console.warn(`⚠️  [Limits] Documents limit approaching for tenant ${tenantId}! Only ${remainingDocumentsPercent.toFixed(1)}% remaining (${remainingDocuments} documents)`);
+                console.log(`⚠️  [WARNING] Documents limit approaching! Only ${remainingDocumentsPercent.toFixed(1)}% remaining (${remainingDocuments} documents)`);
             }
 
             // 3️⃣ ВЫПОЛНИТЬ проверку
@@ -393,13 +389,17 @@ export class HttpProxyServer {
             }
             await this.limitsService.checkQueriesLimit(tenantId, context);
 
-            // Убрали verbose логи успеха - проверка прошла автоматически
+            // 4️⃣ ЛОГИРОВАТЬ успех
+            console.log('✅ [Limits] All checks passed - operation allowed');
+            console.log('═══════════════════════════════════════════════════════\n');
+
             return { success: true };
         } catch (error) {
-            // Логируем только ошибки превышения лимитов (критично)
-            console.error('❌ [Limits] LIMIT EXCEEDED for tenant:', tenantId);
-            console.error(`   Reason: ${error.message}`);
-            console.error('🚫 Operation blocked!');
+            // 5️⃣ ЛОГИРОВАТЬ ошибку
+            console.log('❌ [Limits] LIMIT EXCEEDED!');
+            console.log(`   Reason: ${error.message}`);
+            console.log('🚫 Operation blocked!');
+            console.log('═══════════════════════════════════════════════════════\n');
 
             return {
                 success: false,
@@ -424,20 +424,12 @@ export class HttpProxyServer {
             modifiedBody.limit = 1000;
         }
 
-        // Убрали verbose логи - модификация выполняется автоматически
-        return modifiedBody;
-    }
+        console.log('🔧 [Proxy] Modified request:', {
+            original: req.body,
+            modified: modifiedBody
+        });
 
-    /**
-     * Normalize operation string - remove whitespace and normalize Unicode
-     */
-    private normalizeOperation(operation: any): string {
-        if (!operation) return 'find';
-        const normalized = String(operation)
-            .trim()
-            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-            .replace(/[\u200B-\u200D\uFEFF]/g, ''); // Remove zero-width spaces and BOM
-        return normalized;
+        return modifiedBody;
     }
 
     private async forwardToMongoDB(req: express.Request, tenantId: string, body: any) {
@@ -449,8 +441,9 @@ export class HttpProxyServer {
             const collection = connection.collection(collectionName);
 
             let result;
-            // Normalize operation to handle edge cases
-            const operation = this.normalizeOperation(body.operation);
+            const operation = body.operation || 'find';
+
+            console.log(`🔍 [Proxy] Executing operation: ${operation}`);
 
             switch (operation) {
                 // READ - Получить всех пациентов
@@ -606,71 +599,16 @@ export class HttpProxyServer {
                     break;
                 }
 
-                // ATOMIC OPERATIONS - Атомарные операции для тестирования
-                case 'findOneAndUpdate': {
-                    const filter = { ...body.filter };
-                    delete filter.tenantId;
-
-                    // Если передан ID напрямую
-                    if (body.id) {
-                        filter._id = new (await import('mongodb')).ObjectId(body.id);
-                    }
-
-                    const update = body.update || { $set: body.data };
-                    const options = {
-                        returnDocument: body.returnDocument || 'after', // 'before' | 'after'
-                        upsert: body.upsert || false,
-                        ...(body.sort && { sort: body.sort }),
-                        ...(body.projection && { projection: body.projection })
-                    };
-
-                    result = await collection.findOneAndUpdate(filter, update, options);
-                    break;
-                }
-
-                case 'findOneAndReplace': {
-                    const filter = { ...body.filter };
-                    delete filter.tenantId;
-
-                    if (body.id) {
-                        filter._id = new (await import('mongodb')).ObjectId(body.id);
-                    }
-
-                    const replacement = { ...body.replacement };
-                    delete replacement.tenantId;
-
-                    const options = {
-                        returnDocument: body.returnDocument || 'after',
-                        upsert: body.upsert || false,
-                        ...(body.sort && { sort: body.sort })
-                    };
-
-                    result = await collection.findOneAndReplace(filter, replacement, options);
-                    break;
-                }
-
-                case 'findOneAndDelete': {
-                    const filter = { ...body.filter };
-                    delete filter.tenantId;
-
-                    if (body.id) {
-                        filter._id = new (await import('mongodb')).ObjectId(body.id);
-                    }
-
-                    const options = {
-                        ...(body.sort && { sort: body.sort }),
-                        ...(body.projection && { projection: body.projection })
-                    };
-
-                    result = await collection.findOneAndDelete(filter, options);
-                    break;
-                }
-
                 default:
                     throw new Error(`Unsupported operation: ${operation}`);
             }
 
-            // Убрали verbose логи успеха - операция завершена автоматически
+            console.log('✅ [Proxy] Operation completed:', {
+                operation,
+                success: true,
+                resultType: Array.isArray(result) ? 'array' : typeof result
+            });
+
             return {
                 success: true,
                 data: result,
@@ -759,7 +697,7 @@ export class HttpProxyServer {
 
         // Mongoose автоматически конвертирует имя модели в множественное число
         // Patient -> patients, но для коллекций используем как есть
-        // Убрали verbose логи - извлечение выполняется автоматически
+        console.log(`🔍 [Proxy] Extracted collection name from path ${path}: ${collectionName}`);
         return collectionName;
     }
 
@@ -768,7 +706,7 @@ export class HttpProxyServer {
      */
     private getRateLimitStats() {
         const now = Date.now();
-
+ 
 
 
 
@@ -850,13 +788,13 @@ export class HttpProxyServer {
 
     public start(port: number = 3001) {
         this.app.listen(port, () => {
-            console.log(`🚀 [HTTP Proxy] Server started on port ${port}`);
-            console.log(`📡 [HTTP Proxy] MongoDB Proxy: http://localhost:${port}/mongo/*path`);
-            console.log(`🏥 [HTTP Proxy] Health Check: http://localhost:${port}/proxy/health`);
-            console.log(`🚦 [HTTP Proxy] Rate Limit Stats: http://localhost:${port}/proxy/rate-limit-stats`);
-            console.log(`⚡ [HTTP Proxy] Rate Limiting active:`);
-            console.log(`   - Global limit: 100 requests/min per IP`);
-            console.log(`   - Tenant limit: 50 requests/min`);
+        console.log(`🚀 [HTTP Proxy] Server started on port ${port}`);
+        console.log(`📡 [HTTP Proxy] MongoDB Proxy: http://localhost:${port}/mongo/*path`);
+        console.log(`🏥 [HTTP Proxy] Health Check: http://localhost:${port}/proxy/health`);
+        console.log(`🚦 [HTTP Proxy] Rate Limit Stats: http://localhost:${port}/proxy/rate-limit-stats`);
+        console.log(`⚡ [HTTP Proxy] Rate Limiting active:`);
+        console.log(`   - Global limit: 100 requests/min per IP`);
+        console.log(`   - Tenant limit: 50 requests/min`);
         });
     }
 
@@ -889,7 +827,13 @@ export class HttpProxyServer {
         let statusCode = 500;
 
         try {
-            // Убрали verbose логи - запрос обрабатывается автоматически
+            console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, path, '| path:', req.path);
+            console.log('📋 [HTTP Proxy] Headers check:', {
+                'headers-exists': !!req.headers,
+                'x-tenant-id': req.headers?.['x-tenant-id'],
+                'X-TENANT-ID': req.headers?.['X-TENANT-ID'],
+                'all-header-keys': req.headers ? Object.keys(req.headers) : 'no headers'
+            });
 
             const authResult = await this.checkAuthentication(req);
             if (!authResult.success || !authResult.tenantId) {

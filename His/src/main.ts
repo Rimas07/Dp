@@ -15,7 +15,7 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const monitoringService = app.get(MonitoringService);
-     app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
+  app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
   app.enableCors({
     origin: true, // Разрешаем все источники для облачного деплоя
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
@@ -37,21 +37,9 @@ async function bootstrap() {
   app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   
-  // Подключаем прокси-сервер для обработки запросов к /mongo/* напрямую через Express
-  // Это нужно для Render.com, где запросы идут напрямую к /mongo/patients
-  const proxyService = app.get(ProxyService);
-  const proxyApp = proxyService.getProxyApp();
-  // Получаем Express приложение из NestJS адаптера
-  const httpAdapter = app.getHttpAdapter();
-  const expressApp = httpAdapter.getInstance();
-  // Используем Express middleware для обработки всех запросов к /mongo/*
-  expressApp.use('/mongo', proxyApp);
-  
   // HTTP Proxy доступен через ProxyController на /proxy/mongo/*path
-  // И напрямую через /mongo/*path (для Render.com)
   logger.log(`🚀 HTTP Proxy available via ProxyController`);
   logger.log(`📡 MongoDB Proxy: http://localhost:${configService.get<number>('server.port') || 3000}/proxy/mongo/*path`);
-  logger.log(`📡 MongoDB Proxy (direct): http://localhost:${configService.get<number>('server.port') || 3000}/mongo/*path`);
 
   // Автоматический запуск отдельного HTTP Proxy сервера на порту 3001 для локальной разработки
   // В облаке (Render.com) используем встроенный прокси через middleware выше
