@@ -54,7 +54,7 @@ export class HttpProxyServer {
         // 1️⃣ Глобальный rate limiter - защита от DDoS
         const globalLimiter = rateLimit({
             windowMs: 1 * 60 * 1000, // 1 минута
-            max: 100, // максимум 100 запросов с одного IP за минуту
+            max: 5, // максимум 100 запросов с одного IP за минуту
             message: {
                 success: false,
                 error: 'Too many requests from this IP',
@@ -275,7 +275,7 @@ export class HttpProxyServer {
     private checkRateLimit(tenantId: string): { success: boolean; error?: string; details?: any } {
         const now = Date.now();
         const windowMs = 60 * 1000; // 1 минута
-        const maxRequestsPerWindow = 50; // 50 запросов в минуту для одного tenant
+        const maxRequestsPerWindow = 5; // 50 запросов в минуту для одного tenant
 
         // Получаем или создаем запись для tenant
         let tenantData = this.tenantRequestCounts.get(tenantId);
