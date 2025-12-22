@@ -37,15 +37,15 @@ async function bootstrap() {
   app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   
-  // Подключаем прокси-сервер для обработки запросов к /mongo/* напрямую
+  // Подключаем прокси-сервер для обработки запросов к /mongo/* напрямую через Express
   // Это нужно для Render.com, где запросы идут напрямую к /mongo/patients
   const proxyService = app.get(ProxyService);
   const proxyApp = proxyService.getProxyApp();
+  // Получаем Express приложение из NestJS адаптера
+  const httpAdapter = app.getHttpAdapter();
+  const expressApp = httpAdapter.getInstance();
   // Используем Express middleware для обработки всех запросов к /mongo/*
-  // Важно: это должно быть после CORS, но до других middleware
-  app.use('/mongo', (req, res, next) => {
-    proxyApp(req, res);
-  });
+  expressApp.use('/mongo', proxyApp);
   
   // HTTP Proxy доступен через ProxyController на /proxy/mongo/*path
   // И напрямую через /mongo/*path (для Render.com)
