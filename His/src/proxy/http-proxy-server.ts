@@ -212,8 +212,8 @@ export class HttpProxyServer {
                 }
 
                 // Используем tenantId из токена, если X-Tenant-ID не предоставлен
-                const finalTenantId = headerTenantId || tokenTenantId;
-                
+                const finalTenantId = (headerTenantId || tokenTenantId) as string;
+
                 // Проверяем что тенант существует
                 const tenant = await this.tenantsService.getTenantById(finalTenantId);
                 if (!tenant) {
