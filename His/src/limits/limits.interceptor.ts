@@ -19,8 +19,7 @@ export class LimitsContextInterceptor implements NestInterceptor {
             method: req.method,
         };
 
-       
-        console.log('🔍 LimitsContextInterceptor: Created context:', limitsContext);
+        // Убрали verbose логи - контекст создается автоматически
         (req as any).limitsContext = limitsContext;
 
         return next.handle();

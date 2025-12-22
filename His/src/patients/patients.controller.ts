@@ -57,7 +57,7 @@ export class PatientsController {
   getPatients(@Req() req: Request) {
     const tenantId = req['tenantId'] as string;
     const context = req['limitsContext'];
-    console.log(context);
+    // Убрали verbose логи - контекст используется автоматически
     if (!tenantId) {
       throw new Error('Tenant ID not found in request');
     }

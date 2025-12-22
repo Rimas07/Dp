@@ -5,14 +5,14 @@ import { ProxyService } from './proxy.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @ApiTags('Proxy')
-@Controller()
+@Controller('proxy')
 export class ProxyController {
     constructor(private readonly proxyService: ProxyService) { }
 
     /**
      * Health check 
      */
-    @Get('proxy/health')
+    @Get('health')
     @ApiOperation({
         summary: 'Proxy health check',
         description: 'Checking the Status of the  Proxy'
@@ -25,66 +25,25 @@ export class ProxyController {
         return this.proxyService.health();
     }
 
-    /**
-     * MongoDB Proxy через /mongo/*path (для совместимости с localhost:3001)
-     */
     @Post('mongo/*path')
-    @ApiOperation({
-        summary: 'HTTP Proxy to MongoDB (direct path)',
-        description: 'MongoDB Proxy через /mongo/*path'
-    })
-    async proxyToMongoDBDirect(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-        try {
-            console.log('🔄 [ProxyController] Direct MongoDB request:', req.method, req.path);
-            console.log('📋 [ProxyController] Headers:', {
-                'x-tenant-id': req.headers['x-tenant-id'],
-                'X-TENANT-ID': req.headers['x-tenant-id'],
-                'authorization': req.headers['authorization'] ? 'present' : 'missing',
-                'all-headers': Object.keys(req.headers)
-            });
-            await this.proxyService.handleProxyRequest(req, res);
-        } catch (error) {
-            console.error('❌ [ProxyController] error:', error);
-            if (!res.headersSent) {
-                res.status(500).json({
-                    success: false,
-                    error: 'Proxy controller error',
-                    message: error.message
-                });
-            }
-        }
-    }
-
-    /**
-     * MongoDB Proxy через /proxy/mongo/*path
-     */
-    @Post('proxy/mongo/*path')
     @ApiOperation({
         summary: 'HTTP Proxy to MongoDB',
         description: 'Настоящий HTTP Proxy который перехватывает и пересылает запросы в MongoDB'
     })
     async proxyToMongoDB(@Req() req: Request, @Res() res: Response, @Body() body: any) {
         try {
-            console.log('🔄 [ProxyController] Intercepted request to MongoDB:', req.method, req.path, req.params);
-            console.log('📋 [ProxyController] Headers:', {
-                'x-tenant-id': req.headers['x-tenant-id'],
-                'X-TENANT-ID': req.headers['x-tenant-id'],
-                'authorization': req.headers['authorization'] ? 'present' : 'missing',
-                'all-headers': Object.keys(req.headers)
-            });
+            console.log('🔄 [ProxyController] Intercepted request to MongoDB:', req.method, req.path);
 
-            // Используем прямой метод обработки запроса
-            await this.proxyService.handleProxyRequest(req, res);
+            const proxyApp = this.proxyService.getProxyApp();
+            proxyApp(req, res);
 
         } catch (error) {
             console.error('❌ [ProxyController] error:', error);
-            if (!res.headersSent) {
-                res.status(500).json({
-                    success: false,
-                    error: 'Proxy controller error',
-                    message: error.message
-                });
-            }
+            res.status(500).json({
+                success: false,
+                error: 'Proxy controller error',
+                message: error.message
+            });
         }
     }
 
@@ -95,7 +54,7 @@ export class ProxyController {
      * - X-Tenant-ID header
      * - Authorization: Bearer <token>
      */
-    @Post('proxy/test')
+    @Post('test')
     @ApiOperation({
         summary: 'Test Proxy validation',
         description: 'Test function for checking the operation of Data-Limiting Proxy'
@@ -136,7 +95,7 @@ export class ProxyController {
         }
     }
 
-    @Post('proxy/start')
+    @Post('start')
     @ApiOperation({
         summary: 'Start HTTP Proxy Server',
         description: 'Запускает отдельный HTTP Proxy сервер на порту 3001'

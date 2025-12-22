@@ -20,7 +20,7 @@ export class TenantsMiddleware implements NestMiddleware {
         if (!tenantExists) {
             throw new NotFoundException('tenant does not exist')
         }
-        console.log(tenantId);
+        // Убрали verbose логи - tenantId сохраняется автоматически
         req['tenantId'] = tenantId;
         next();
     }

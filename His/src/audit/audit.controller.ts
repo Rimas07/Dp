@@ -47,9 +47,10 @@ export class AuditController {
                     const PatientModel = tenantDb.model(Patient.name, PatientSchema);
                     const patientCount = await PatientModel.countDocuments();
                     totalPatients += patientCount;
-                    console.log(`Tenant ${tenant.tenantId}: ${patientCount} patients`);
+                    // Убрали verbose логи - статистика собирается автоматически
                 } catch (error) {
-                    console.log(`Error counting patients for tenant ${tenant.tenantId}:`, error.message);
+                    // Логируем только ошибки (критично)
+                    console.error(`❌ Error counting patients for tenant ${tenant.tenantId}:`, error.message);
                 }
             }
 
@@ -73,7 +74,7 @@ export class AuditController {
                 }
             };
 
-            console.log('📊 System statistics:', result);
+            // Убрали verbose логи - статистика возвращается автоматически
             return result;
         } catch (error) {
             return {

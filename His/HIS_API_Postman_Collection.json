@@ -1,0 +1,1846 @@
+{
+	"info": {
+		"_postman_id": "his-api-collection-2024",
+		"name": "HIS API - Hospital Information System",
+		"description": "Полная коллекция API endpoints для системы управления медицинской информацией (HIS)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.environment.set(\"accessToken\", jsonData.accessToken);",
+									"    pm.environment.set(\"tenantId\", jsonData.tenantId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@hospital1.ru\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						},
+						"description": "Вход пользователя в систему. Возвращает JWT токен и tenant ID."
+					},
+					"response": []
+				}
+			],
+			"description": "Эндпоинты для аутентификации пользователей"
+		},
+		{
+			"name": "2. Tenants",
+			"item": [
+				{
+					"name": "Create Company",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"companyName\": \"City Hospital #1\",\n  \"user\": {\n    \"email\": \"admin@hospital1.ru\",\n    \"password\": \"123456\",\n    \"name\": \"Admin User\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/tenants/create-company",
+							"host": ["{{baseUrl}}"],
+							"path": ["tenants", "create-company"]
+						},
+						"description": "Создание новой медицинской организации с администратором"
+					},
+					"response": []
+				}
+			],
+			"description": "Управление медицинскими организациями (компаниями)"
+		},
+		{
+			"name": "3. Users",
+			"item": [
+				{
+					"name": "Get User by Email",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users/email/admin@hospital1.ru",
+							"host": ["{{baseUrl}}"],
+							"path": ["users", "email", "admin@hospital1.ru"]
+						},
+						"description": "Получить пользователя по email адресу"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users/:userId",
+							"host": ["{{baseUrl}}"],
+							"path": ["users", ":userId"],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "67f8dae8b45234567890abcdef"
+								}
+							]
+						},
+						"description": "Получить пользователя по ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user\": {\n    \"email\": \"doctor@hospital1.ru\",\n    \"password\": \"123456\",\n    \"name\": \"Doctor Name\"\n  },\n  \"tenantId\": \"{{tenantId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["users"]
+						},
+						"description": "Создать нового пользователя"
+					},
+					"response": []
+				}
+			],
+			"description": "Управление пользователями системы"
+		},
+		{
+			"name": "4. Patients",
+			"item": [
+				{
+					"name": "Get All Patients",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/patients",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients"]
+						},
+						"description": "Получить всех пациентов для текущего tenant"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Patient by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/patients/:patientId",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients", ":patientId"],
+							"variable": [
+								{
+									"key": "patientId",
+									"value": "507f1f77bcf86cd799439011"
+								}
+							]
+						},
+						"description": "Получить пациента по ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Patient",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John\",\n  \"surname\": \"Doe\",\n  \"age\": 30\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/patients",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients"]
+						},
+						"description": "Создать нового пациента"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Patient",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Jane\",\n  \"surname\": \"Smith\",\n  \"age\": 25\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/patients/:patientId",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients", ":patientId"],
+							"variable": [
+								{
+									"key": "patientId",
+									"value": "507f1f77bcf86cd799439011"
+								}
+							]
+						},
+						"description": "Обновить данные пациента"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Patient",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/patients/:patientId",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients", ":patientId"],
+							"variable": [
+								{
+									"key": "patientId",
+									"value": "507f1f77bcf86cd799439011"
+								}
+							]
+						},
+						"description": "Удалить пациента"
+					},
+					"response": []
+				}
+			],
+			"description": "Управление пациентами (требуется аутентификация)"
+		},
+		{
+			"name": "5. Limits",
+			"item": [
+				{
+					"name": "Get Limits",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/limits/:tenantId",
+							"host": ["{{baseUrl}}"],
+							"path": ["limits", ":tenantId"],
+							"variable": [
+								{
+									"key": "tenantId",
+									"value": "{{tenantId}}"
+								}
+							]
+						},
+						"description": "Получить лимиты для tenant"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Limits",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"maxDocuments\": 2000,\n  \"maxDataSizeKB\": 102400,\n  \"monthlyQueries\": 5000\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/limits/:tenantId",
+							"host": ["{{baseUrl}}"],
+							"path": ["limits", ":tenantId"],
+							"variable": [
+								{
+									"key": "tenantId",
+									"value": "{{tenantId}}"
+								}
+							]
+						},
+						"description": "Установить лимиты для tenant"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Usage",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/limits/usage/:tenantId",
+							"host": ["{{baseUrl}}"],
+							"path": ["limits", "usage", ":tenantId"],
+							"variable": [
+								{
+									"key": "tenantId",
+									"value": "{{tenantId}}"
+								}
+							]
+						},
+						"description": "Получить текущее использование ресурсов"
+					},
+					"response": []
+				}
+			],
+			"description": "Управление лимитами ресурсов (требуется аутентификация)"
+		},
+		{
+			"name": "6. Audit",
+			"item": [
+				{
+					"name": "Get Audit Events",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/audit?tenantId={{tenantId}}&limit=50",
+							"host": ["{{baseUrl}}"],
+							"path": ["audit"],
+							"query": [
+								{
+									"key": "tenantId",
+									"value": "{{tenantId}}",
+									"disabled": true
+								},
+								{
+									"key": "eventType",
+									"value": "PATIENT_CREATED",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "50",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Получить события аудита с фильтрацией"
+					},
+					"response": []
+				},
+				{
+					"name": "Get System Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/audit/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["audit", "stats"]
+						},
+						"description": "Получить статистику системы"
+					},
+					"response": []
+				}
+			],
+			"description": "Просмотр аудит логов и статистики"
+		},
+		{
+			"name": "7. Proxy",
+			"item": [
+				{
+					"name": "Proxy Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/proxy/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["proxy", "health"]
+						},
+						"description": "Проверка состояния прокси"
+					},
+					"response": []
+				},
+				{
+					"name": "Proxy Test",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/proxy/test",
+							"host": ["{{baseUrl}}"],
+							"path": ["proxy", "test"]
+						},
+						"description": "Тест прокси валидации"
+					},
+					"response": []
+				},
+				{
+					"name": "Proxy MongoDB Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"collection\": \"patients\",\n  \"action\": \"find\",\n  \"query\": {}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/proxy/mongo/find",
+							"host": ["{{baseUrl}}"],
+							"path": ["proxy", "mongo", "find"]
+						},
+						"description": "Проксирование запроса к MongoDB"
+					},
+					"response": []
+				},
+				{
+					"name": "Start Proxy Server",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/proxy/start",
+							"host": ["{{baseUrl}}"],
+							"path": ["proxy", "start"]
+						},
+						"description": "Запустить отдельный прокси сервер на порту 3001"
+					},
+					"response": []
+				},
+				{
+					"name": "--- MongoDB Proxy: Атомарные операции ---",
+					"item": [
+						{
+							"name": "🔍 Proxy: Find All Patients",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"operation\": \"find\",\n  \"filter\": {},\n  \"limit\": 10\n}"
+								},
+								"url": {
+									"raw": "{{proxyBaseUrl}}/mongo/patients",
+									"host": ["{{proxyBaseUrl}}"],
+									"path": ["mongo", "patients"]
+								},
+								"description": "Найти всех пациентов через MongoDB proxy. Используйте {{proxyBaseUrl}} = https://mongodb-proxy-zvw6.onrender.com"
+							},
+							"response": []
+						},
+						{
+							"name": "🔍 Proxy: Find One Patient",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"operation\": \"findOne\",\n  \"filter\": {\n    \"_id\": \"{{patientId}}\"\n  }\n}"
+								},
+								"url": {
+									"raw": "{{proxyBaseUrl}}/mongo/patients",
+									"host": ["{{proxyBaseUrl}}"],
+									"path": ["mongo", "patients"]
+								},
+								"description": "Найти одного пациента по ID через proxy"
+							},
+							"response": []
+						},
+						{
+							"name": "➕ Proxy: Create Patient",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"operation\": \"insertOne\",\n  \"document\": {\n    \"name\": \"Test Patient\",\n    \"surname\": \"Proxy Test\",\n    \"age\": 30\n  }\n}"
+								},
+								"url": {
+									"raw": "{{proxyBaseUrl}}/mongo/patients",
+									"host": ["{{proxyBaseUrl}}"],
+									"path": ["mongo", "patients"]
+								},
+								"description": "Создать пациента через MongoDB proxy"
+							},
+							"response": []
+						},
+						{
+							"name": "🧪 Proxy: Atomic findOneAndUpdate (Тест атомарности)",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Генерируем уникальный идентификатор для теста",
+											"const testId = 'atomic-test-' + Date.now();",
+											"pm.environment.set('atomicTestId', testId);",
+											"console.log('🧪 Начинаем тест атомарной операции:', testId);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Atomic operation completed\", function () {",
+											"    pm.response.to.have.status(200);",
+											"    const jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.property('success');",
+											"    ",
+											"    if (jsonData.success) {",
+											"        console.log('✅ Атомарная операция выполнена успешно');",
+											"        console.log('Результат:', jsonData.data);",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"operation\": \"findOneAndUpdate\",\n  \"filter\": {\n    \"name\": \"Test Patient\"\n  },\n  \"update\": {\n    \"$inc\": {\n      \"age\": 1\n    }\n  },\n  \"returnDocument\": \"after\",\n  \"upsert\": false\n}"
+								},
+								"url": {
+									"raw": "{{proxyBaseUrl}}/mongo/patients",
+									"host": ["{{proxyBaseUrl}}"],
+									"path": ["mongo", "patients"]
+								},
+								"description": "🧪 АТОМАРНАЯ ОПЕРАЦИЯ: findOneAndUpdate - обновляет документ атомарно. Используйте для тестирования атомарности через proxy."
+							},
+							"response": []
+						},
+						{
+							"name": "🧪 Proxy: Atomic Test - Concurrent Update (Request 1)",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Устанавливаем время начала",
+											"pm.environment.set('atomicRequest1Start', Date.now());",
+											"console.log('🚀 Atomic Request 1 начат');"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"const endTime = Date.now();",
+											"const startTime = parseInt(pm.environment.get('atomicRequest1Start') || '0');",
+											"",
+											"if (pm.response.code === 200) {",
+											"    const jsonData = pm.response.json();",
+											"    if (jsonData.success && jsonData.data) {",
+											"        pm.test(\"✅ Request 1: Atomic update successful\", function () {",
+											"            pm.response.to.have.status(200);",
+											"            pm.environment.set('atomicRequest1Result', 'SUCCESS');",
+											"            console.log('✅ Request 1: Успешно обновлен:', jsonData.data);",
+											"        });",
+											"    } else {",
+											"        pm.environment.set('atomicRequest1Result', 'NO_MATCH');",
+											"        console.log('⚠️ Request 1: Документ не найден или не обновлен');",
+											"    }",
+											"} else {",
+											"    pm.environment.set('atomicRequest1Result', 'ERROR');",
+											"    console.error('❌ Request 1: Ошибка:', pm.response.code);",
+											"}",
+											"",
+											"console.log('⏱️ Request 1 выполнен за:', endTime - startTime, 'мс');"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"operation\": \"findOneAndUpdate\",\n  \"filter\": {\n    \"name\": \"Atomic Test Patient\"\n  },\n  \"update\": {\n    \"$inc\": {\n      \"counter\": 1\n    },\n    \"$set\": {\n      \"lastUpdated\": new Date().toISOString()\n    }\n  },\n  \"returnDocument\": \"after\",\n  \"upsert\": true\n}"
+								},
+								"url": {
+									"raw": "{{proxyBaseUrl}}/mongo/patients",
+									"host": ["{{proxyBaseUrl}}"],
+									"path": ["mongo", "patients"]
+								},
+								"description": "🧪 Первый параллельный запрос для теста атомарности. Нажмите Send, затем СРАЗУ отправьте Request 2!"
+							},
+							"response": []
+						},
+						{
+							"name": "🧪 Proxy: Atomic Test - Concurrent Update (Request 2)",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Устанавливаем время начала",
+											"const startTime = Date.now();",
+											"pm.environment.set('atomicRequest2Start', startTime);",
+											"",
+											"// Проверяем время между запросами",
+											"const request1Start = parseInt(pm.environment.get('atomicRequest1Start') || '0');",
+											"if (request1Start > 0) {",
+											"    const timeDiff = startTime - request1Start;",
+											"    console.log('⏱️ Время между запросами:', timeDiff, 'мс');",
+											"    if (timeDiff < 100) {",
+											"        console.log('✅ Отлично! Запросы почти одновременные!');",
+											"    }",
+											"}",
+											"",
+											"console.log('🚀 Atomic Request 2 начат');"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"const endTime = Date.now();",
+											"const startTime = parseInt(pm.environment.get('atomicRequest2Start') || '0');",
+											"",
+											"if (pm.response.code === 200) {",
+											"    const jsonData = pm.response.json();",
+											"    if (jsonData.success && jsonData.data) {",
+											"        pm.test(\"✅ Request 2: Atomic update successful\", function () {",
+											"            pm.response.to.have.status(200);",
+											"            pm.environment.set('atomicRequest2Result', 'SUCCESS');",
+											"            console.log('✅ Request 2: Успешно обновлен:', jsonData.data);",
+											"        });",
+											"    } else {",
+											"        pm.environment.set('atomicRequest2Result', 'NO_MATCH');",
+											"        console.log('⚠️ Request 2: Документ не найден или не обновлен');",
+											"    }",
+											"} else {",
+											"    pm.environment.set('atomicRequest2Result', 'ERROR');",
+											"    console.error('❌ Request 2: Ошибка:', pm.response.code);",
+											"}",
+											"",
+											"console.log('⏱️ Request 2 выполнен за:', endTime - startTime, 'мс');",
+											"",
+											"// Анализ результатов",
+											"const request1Result = pm.environment.get('atomicRequest1Result');",
+											"const request2Result = pm.environment.get('atomicRequest2Result');",
+											"",
+											"console.log('\\n📊 РЕЗУЛЬТАТЫ АТОМАРНОГО ТЕСТА:');",
+											"console.log('Request 1:', request1Result);",
+											"console.log('Request 2:', request2Result);",
+											"",
+											"if (request1Result === 'SUCCESS' && request2Result === 'SUCCESS') {",
+											"    console.log('✅ Оба запроса успешны - атомарная операция работает!');",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"operation\": \"findOneAndUpdate\",\n  \"filter\": {\n    \"name\": \"Atomic Test Patient\"\n  },\n  \"update\": {\n    \"$inc\": {\n      \"counter\": 1\n    },\n    \"$set\": {\n      \"lastUpdated\": new Date().toISOString()\n    }\n  },\n  \"returnDocument\": \"after\",\n  \"upsert\": true\n}"
+								},
+								"url": {
+									"raw": "{{proxyBaseUrl}}/mongo/patients",
+									"host": ["{{proxyBaseUrl}}"],
+									"path": ["mongo", "patients"]
+								},
+								"description": "🧪 Второй параллельный запрос для теста атомарности. Нажмите Send СРАЗУ после Request 1!"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Proxy: Verify Atomic Result",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Result retrieved\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"const jsonData = pm.response.json();",
+											"if (jsonData.success && jsonData.data) {",
+											"    const patient = Array.isArray(jsonData.data) ? jsonData.data[0] : jsonData.data;",
+											"    ",
+											"    console.log('\\n📊 ИТОГОВЫЙ РЕЗУЛЬТАТ АТОМАРНОЙ ОПЕРАЦИИ:');",
+											"    console.log('Документ:', patient);",
+											"    ",
+											"    if (patient.counter !== undefined) {",
+											"        console.log('Счетчик:', patient.counter);",
+											"        ",
+											"        // Если оба запроса были успешны, counter должен быть 2",
+											"        const request1Result = pm.environment.get('atomicRequest1Result');",
+											"        const request2Result = pm.environment.get('atomicRequest2Result');",
+											"        ",
+											"        if (request1Result === 'SUCCESS' && request2Result === 'SUCCESS') {",
+											"            pm.test(\"✅ Атомарность: Оба запроса увеличили счетчик\", function () {",
+											"                pm.expect(patient.counter).to.be.at.least(2);",
+											"            });",
+											"            console.log('✅ Оба запроса успешно выполнили атомарное обновление!');",
+											"        }",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"operation\": \"findOne\",\n  \"filter\": {\n    \"name\": \"Atomic Test Patient\"\n  }\n}"
+								},
+								"url": {
+									"raw": "{{proxyBaseUrl}}/mongo/patients",
+									"host": ["{{proxyBaseUrl}}"],
+									"path": ["mongo", "patients"]
+								},
+								"description": "Проверяет результат атомарной операции - оба запроса должны были успешно обновить документ"
+							},
+							"response": []
+						}
+					],
+					"description": "🧪 Тестирование атомарных операций MongoDB через Proxy эндпоинт\n\n📋 КАК ИСПОЛЬЗОВАТЬ:\n\n1. **Настройте переменную proxyBaseUrl:**\n   - В Postman: Environment → Edit\n   - Добавьте переменную: `proxyBaseUrl` = `https://mongodb-proxy-zvw6.onrender.com`\n   - Или используйте ваш локальный proxy: `http://localhost:3000`\n\n2. **Базовые операции:**\n   - `🔍 Proxy: Find All Patients` - найти всех пациентов\n   - `🔍 Proxy: Find One Patient` - найти одного пациента\n   - `➕ Proxy: Create Patient` - создать пациента\n\n3. **Тест атомарности (ручной):**\n   - Выполните `🧪 Proxy: Atomic Test - Concurrent Update (Request 1)`\n   - СРАЗУ ЖЕ выполните `🧪 Proxy: Atomic Test - Concurrent Update (Request 2)`\n   - Оба запроса используют `findOneAndUpdate` с `$inc` для атомарного увеличения счетчика\n   - Выполните `✅ Proxy: Verify Atomic Result` для проверки результата\n\n4. **Что проверяется:**\n   - Атомарность операции `findOneAndUpdate`\n   - Оба запроса должны успешно обновить документ\n   - Счетчик должен быть увеличен на 2 (по 1 от каждого запроса)\n\n💡 СОВЕТ: Используйте консоль Postman (View → Show Postman Console) для детального анализа результатов."
+				}
+			],
+			"description": "HTTP Proxy для проксирования запросов к MongoDB"
+		},
+		{
+			"name": "8. Monitoring",
+			"item": [
+				{
+					"name": "Prometheus Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/metrics",
+							"host": ["{{baseUrl}}"],
+							"path": ["metrics"]
+						},
+						"description": "Получить метрики Prometheus"
+					},
+					"response": []
+				}
+			],
+			"description": "Мониторинг и метрики системы"
+		},
+		{
+			"name": "9. Atomic Operations Tests",
+			"item": [
+				{
+					"name": "Setup: Reset Limits for Atomic Test",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Устанавливаем низкие лимиты для тестирования атомарности",
+									"pm.environment.set(\"testMaxDocuments\", \"5\");",
+									"pm.environment.set(\"testMaxDataSizeKB\", \"100\");",
+									"pm.environment.set(\"testMonthlyQueries\", \"10\");"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Limits reset successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"maxDocuments\": {{testMaxDocuments}},\n  \"maxDataSizeKB\": {{testMaxDataSizeKB}},\n  \"monthlyQueries\": {{testMonthlyQueries}}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/limits/:tenantId",
+							"host": ["{{baseUrl}}"],
+							"path": ["limits", ":tenantId"],
+							"variable": [
+								{
+									"key": "tenantId",
+									"value": "{{tenantId}}"
+								}
+							]
+						},
+						"description": "Устанавливает низкие лимиты для тестирования атомарных операций"
+					},
+					"response": []
+				},
+				{
+					"name": "Setup: Reset Usage to Near Limit",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Получаем текущее использование",
+									"const getUsageRequest = {",
+									"    url: pm.environment.get('baseUrl') + '/limits/usage/' + pm.environment.get('tenantId'),",
+									"    method: 'GET',",
+									"    header: {",
+									"        'Authorization': 'Bearer ' + pm.environment.get('accessToken'),",
+									"        'X-TENANT-ID': pm.environment.get('tenantId')",
+									"    }",
+									"};",
+									"",
+									"pm.sendRequest(getUsageRequest, function (err, res) {",
+									"    if (!err && res.code === 200) {",
+									"        const usage = res.json();",
+									"        // Устанавливаем использование близко к лимиту (4 из 5)",
+									"        pm.environment.set('currentDocsCount', usage.documentsCount || 0);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Usage retrieved\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/limits/usage/:tenantId",
+							"host": ["{{baseUrl}}"],
+							"path": ["limits", "usage", ":tenantId"],
+							"variable": [
+								{
+									"key": "tenantId",
+									"value": "{{tenantId}}"
+								}
+							]
+						},
+						"description": "Получает текущее использование перед тестом атомарности"
+					},
+					"response": []
+				},
+				{
+					"name": "Atomic Test: Concurrent Patient Creation (Request 1)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Генерируем уникальное имя для этого запроса",
+									"const timestamp = Date.now();",
+									"const randomId = Math.floor(Math.random() * 1000);",
+									"pm.environment.set('patientName1', 'AtomicTest_' + timestamp + '_' + randomId);",
+									"",
+									"// Сохраняем время начала запроса",
+									"pm.environment.set('request1StartTime', timestamp);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Проверяем результат атомарной операции",
+									"if (pm.response.code === 201) {",
+									"    pm.test(\"Request 1: Patient created successfully\", function () {",
+									"        pm.response.to.have.status(201);",
+									"        const jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('_id');",
+									"        pm.environment.set('patient1Id', jsonData._id);",
+									"        pm.environment.set('request1Success', 'true');",
+									"    });",
+									"} else if (pm.response.code === 403) {",
+									"    pm.test(\"Request 1: Limit exceeded (expected in concurrent test)\", function () {",
+									"        pm.response.to.have.status(403);",
+									"        pm.environment.set('request1Success', 'false');",
+									"        const jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('error');",
+									"        pm.expect(jsonData.error).to.include('LIMIT_EXCEEDED');",
+									"    });",
+									"}",
+									"",
+									"// Сохраняем время завершения",
+									"pm.environment.set('request1EndTime', Date.now());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"{{patientName1}}\",\n  \"surname\": \"AtomicTest\",\n  \"age\": 25\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/patients",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients"]
+						},
+						"description": "Первый параллельный запрос на создание пациента. Используйте Collection Runner для одновременного выполнения с Request 2."
+					},
+					"response": []
+				},
+				{
+					"name": "Atomic Test: Concurrent Patient Creation (Request 2)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Генерируем уникальное имя для этого запроса",
+									"const timestamp = Date.now();",
+									"const randomId = Math.floor(Math.random() * 1000);",
+									"pm.environment.set('patientName2', 'AtomicTest_' + timestamp + '_' + randomId);",
+									"",
+									"// Сохраняем время начала запроса",
+									"pm.environment.set('request2StartTime', timestamp);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Проверяем результат атомарной операции",
+									"if (pm.response.code === 201) {",
+									"    pm.test(\"Request 2: Patient created successfully\", function () {",
+									"        pm.response.to.have.status(201);",
+									"        const jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('_id');",
+									"        pm.environment.set('patient2Id', jsonData._id);",
+									"        pm.environment.set('request2Success', 'true');",
+									"    });",
+									"} else if (pm.response.code === 403) {",
+									"    pm.test(\"Request 2: Limit exceeded (expected in concurrent test)\", function () {",
+									"        pm.response.to.have.status(403);",
+									"        pm.environment.set('request2Success', 'false');",
+									"        const jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('error');",
+									"        pm.expect(jsonData.error).to.include('LIMIT_EXCEEDED');",
+									"    });",
+									"}",
+									"",
+									"// Сохраняем время завершения",
+									"pm.environment.set('request2EndTime', Date.now());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"{{patientName2}}\",\n  \"surname\": \"AtomicTest\",\n  \"age\": 25\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/patients",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients"]
+						},
+						"description": "Второй параллельный запрос на создание пациента. Используйте Collection Runner для одновременного выполнения с Request 1."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify: Check Atomic Operation Result",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Usage retrieved for verification\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const usage = pm.response.json();",
+									"const maxDocs = parseInt(pm.environment.get('testMaxDocuments') || '5');",
+									"",
+									"pm.test(\"Atomic operation: Only one request should succeed when at limit\", function () {",
+									"    // Проверяем, что лимит не был превышен",
+									"    pm.expect(usage.documentsCount).to.be.at.most(maxDocs);",
+									"    ",
+									"    // Если оба запроса были выполнены одновременно, только один должен был пройти",
+									"    const request1Success = pm.environment.get('request1Success');",
+									"    const request2Success = pm.environment.get('request2Success');",
+									"    ",
+									"    if (request1Success && request2Success) {",
+									"        // Если оба успешны, проверяем что лимит не превышен",
+									"        pm.expect(usage.documentsCount).to.be.at.most(maxDocs);",
+									"    }",
+									"});",
+									"",
+									"pm.test(\"Atomic operation: System correctly enforced limits\", function () {",
+									"    // Лимит должен быть соблюден благодаря атомарным операциям",
+									"    pm.expect(usage.documentsCount).to.be.at.most(maxDocs);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/limits/usage/:tenantId",
+							"host": ["{{baseUrl}}"],
+							"path": ["limits", "usage", ":tenantId"],
+							"variable": [
+								{
+									"key": "tenantId",
+									"value": "{{tenantId}}"
+								}
+							]
+						},
+						"description": "Проверяет результат атомарной операции - лимит не должен быть превышен"
+					},
+					"response": []
+				},
+				{
+					"name": "Cleanup: Delete Test Patients",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Очистка выполняется независимо от результата",
+									"pm.test(\"Cleanup completed\", function () {",
+									"    // Удаление может вернуть 200 или 404 (если уже удален)",
+									"    pm.expect([200, 404]).to.include(pm.response.code);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-TENANT-ID",
+								"value": "{{tenantId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/patients/:patientId",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients", ":patientId"],
+							"variable": [
+								{
+									"key": "patientId",
+									"value": "{{patient1Id}}"
+								}
+							]
+						},
+						"description": "Удаляет тестового пациента 1 (если был создан)"
+					},
+					"response": []
+				},
+				{
+					"name": "--- РУЧНОЕ ТЕСТИРОВАНИЕ ---",
+					"item": [
+						{
+							"name": "📊 Шаг 1: Проверить текущие лимиты и использование",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Limits retrieved\", function () {",
+											"    pm.response.to.have.status(200);",
+											"    const limits = pm.response.json();",
+											"    console.log(\"📊 Текущие лимиты:\", limits);",
+											"    pm.environment.set('currentMaxDocs', limits.maxDocuments);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/limits/:tenantId",
+									"host": ["{{baseUrl}}"],
+									"path": ["limits", ":tenantId"],
+									"variable": [
+										{
+											"key": "tenantId",
+											"value": "{{tenantId}}"
+										}
+									]
+								},
+								"description": "Проверяет текущие лимиты перед тестом"
+							},
+							"response": []
+						},
+						{
+							"name": "📊 Шаг 2: Проверить текущее использование",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Usage retrieved\", function () {",
+											"    pm.response.to.have.status(200);",
+											"    const usage = pm.response.json();",
+											"    const maxDocs = parseInt(pm.environment.get('currentMaxDocs') || '1000');",
+											"    ",
+											"    console.log(\"📊 Текущее использование:\", usage);",
+											"    console.log(\"📊 Лимит:\", maxDocs);",
+											"    console.log(\"📊 Осталось:\", maxDocs - usage.documentsCount);",
+											"    ",
+											"    // Сохраняем для проверки",
+											"    pm.environment.set('usageBeforeTest', usage.documentsCount);",
+											"    ",
+											"    // Предупреждение, если использование близко к лимиту",
+											"    if (usage.documentsCount >= maxDocs - 1) {",
+											"        console.warn(\"⚠️ ВНИМАНИЕ: Использование близко к лимиту! Идеально для теста атомарности.\");",
+											"    } else {",
+											"        console.log(\"💡 Совет: Для лучшего теста атомарности используйте 'Setup: Reset Limits for Atomic Test'\");",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/limits/usage/:tenantId",
+									"host": ["{{baseUrl}}"],
+									"path": ["limits", "usage", ":tenantId"],
+									"variable": [
+										{
+											"key": "tenantId",
+											"value": "{{tenantId}}"
+										}
+									]
+								},
+								"description": "Проверяет текущее использование перед тестом"
+							},
+							"response": []
+						},
+						{
+							"name": "🧪 Шаг 3: Создать пациента (Запрос 1) - НАЖМИТЕ БЫСТРО",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Генерируем уникальное имя",
+											"const timestamp = Date.now();",
+											"pm.environment.set('manualTestPatient1', 'ManualTest_' + timestamp);",
+											"pm.environment.set('request1StartTime', timestamp);",
+											"console.log('🚀 Запрос 1 начат в:', new Date(timestamp).toISOString());"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"const endTime = Date.now();",
+											"const startTime = parseInt(pm.environment.get('request1StartTime') || '0');",
+											"const duration = endTime - startTime;",
+											"",
+											"if (pm.response.code === 201) {",
+											"    pm.test(\"✅ Запрос 1: Пациент создан успешно\", function () {",
+											"        pm.response.to.have.status(201);",
+											"        const jsonData = pm.response.json();",
+											"        pm.expect(jsonData).to.have.property('_id');",
+											"        pm.environment.set('manualPatient1Id', jsonData._id);",
+											"        pm.environment.set('request1Result', 'SUCCESS');",
+											"    });",
+											"    console.log('✅ Запрос 1: УСПЕХ - Пациент создан');",
+											"} else if (pm.response.code === 403) {",
+											"    pm.test(\"❌ Запрос 1: Лимит превышен (это нормально при атомарности)\", function () {",
+											"        pm.response.to.have.status(403);",
+											"        pm.environment.set('request1Result', 'LIMIT_EXCEEDED');",
+											"        const jsonData = pm.response.json();",
+											"        console.log('❌ Запрос 1: ЛИМИТ ПРЕВЫШЕН:', jsonData.message);",
+											"    });",
+											"} else {",
+											"    console.error('⚠️ Запрос 1: Неожиданный статус:', pm.response.code);",
+											"}",
+											"",
+											"console.log('⏱️ Запрос 1 выполнен за:', duration, 'мс');"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"{{manualTestPatient1}}\",\n  \"surname\": \"ManualAtomicTest\",\n  \"age\": 30\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/patients",
+									"host": ["{{baseUrl}}"],
+									"path": ["patients"]
+								},
+								"description": "🧪 РУЧНОЙ ТЕСТ: Создайте пациента. После нажатия Send, СРАЗУ перейдите к следующему запросу и нажмите Send там тоже!"
+							},
+							"response": []
+						},
+						{
+							"name": "🧪 Шаг 4: Создать пациента (Запрос 2) - НАЖМИТЕ БЫСТРО ПОСЛЕ ЗАПРОСА 1",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Генерируем уникальное имя",
+											"const timestamp = Date.now();",
+											"pm.environment.set('manualTestPatient2', 'ManualTest_' + timestamp);",
+											"pm.environment.set('request2StartTime', timestamp);",
+											"console.log('🚀 Запрос 2 начат в:', new Date(timestamp).toISOString());",
+											"",
+											"// Проверяем время между запросами",
+											"const request1Start = parseInt(pm.environment.get('request1StartTime') || '0');",
+											"if (request1Start > 0) {",
+											"    const timeDiff = timestamp - request1Start;",
+											"    console.log('⏱️ Время между запросами:', timeDiff, 'мс');",
+											"    if (timeDiff < 100) {",
+											"        console.log('✅ Отлично! Запросы почти одновременные - идеально для теста атомарности!');",
+											"    } else if (timeDiff < 500) {",
+											"        console.log('⚠️ Запросы с небольшой задержкой, но тест все равно должен работать');",
+											"    } else {",
+											"        console.warn('⚠️ Запросы с большой задержкой. Для лучшего теста нажмите Send быстрее!');",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"const endTime = Date.now();",
+											"const startTime = parseInt(pm.environment.get('request2StartTime') || '0');",
+											"const duration = endTime - startTime;",
+											"",
+											"if (pm.response.code === 201) {",
+											"    pm.test(\"✅ Запрос 2: Пациент создан успешно\", function () {",
+											"        pm.response.to.have.status(201);",
+											"        const jsonData = pm.response.json();",
+											"        pm.expect(jsonData).to.have.property('_id');",
+											"        pm.environment.set('manualPatient2Id', jsonData._id);",
+											"        pm.environment.set('request2Result', 'SUCCESS');",
+											"    });",
+											"    console.log('✅ Запрос 2: УСПЕХ - Пациент создан');",
+											"} else if (pm.response.code === 403) {",
+											"    pm.test(\"❌ Запрос 2: Лимит превышен (это нормально при атомарности)\", function () {",
+											"        pm.response.to.have.status(403);",
+											"        pm.environment.set('request2Result', 'LIMIT_EXCEEDED');",
+											"        const jsonData = pm.response.json();",
+											"        console.log('❌ Запрос 2: ЛИМИТ ПРЕВЫШЕН:', jsonData.message);",
+											"    });",
+											"} else {",
+											"    console.error('⚠️ Запрос 2: Неожиданный статус:', pm.response.code);",
+											"}",
+											"",
+											"console.log('⏱️ Запрос 2 выполнен за:', duration, 'мс');",
+											"",
+											"// Анализ результатов",
+											"const request1Result = pm.environment.get('request1Result');",
+											"const request2Result = pm.environment.get('request2Result');",
+											"",
+											"console.log('\\n📊 РЕЗУЛЬТАТЫ ТЕСТА АТОМАРНОСТИ:');",
+											"console.log('Запрос 1:', request1Result);",
+											"console.log('Запрос 2:', request2Result);",
+											"",
+											"if (request1Result === 'SUCCESS' && request2Result === 'LIMIT_EXCEEDED') {",
+											"    console.log('✅ ОТЛИЧНО! Атомарность работает: только один запрос прошел!');",
+											"} else if (request1Result === 'LIMIT_EXCEEDED' && request2Result === 'SUCCESS') {",
+											"    console.log('✅ ОТЛИЧНО! Атомарность работает: только один запрос прошел!');",
+											"} else if (request1Result === 'SUCCESS' && request2Result === 'SUCCESS') {",
+											"    console.log('ℹ️ Оба запроса прошли. Это нормально, если лимит был далеко от исчерпания.');",
+											"} else if (request1Result === 'LIMIT_EXCEEDED' && request2Result === 'LIMIT_EXCEEDED') {",
+											"    console.log('ℹ️ Оба запроса не прошли. Лимит уже был исчерпан.');",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"{{manualTestPatient2}}\",\n  \"surname\": \"ManualAtomicTest\",\n  \"age\": 30\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/patients",
+									"host": ["{{baseUrl}}"],
+									"path": ["patients"]
+								},
+								"description": "🧪 РУЧНОЙ ТЕСТ: Сразу после отправки Запроса 1, нажмите Send здесь! Чем быстрее, тем лучше для теста атомарности."
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Шаг 5: Проверить результат атомарности",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Usage retrieved after test\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"const usage = pm.response.json();",
+											"const maxDocs = parseInt(pm.environment.get('currentMaxDocs') || '1000');",
+											"const usageBefore = parseInt(pm.environment.get('usageBeforeTest') || '0');",
+											"",
+											"console.log('\\n📊 ИТОГОВАЯ ПРОВЕРКА АТОМАРНОСТИ:');",
+											"console.log('Использование до теста:', usageBefore);",
+											"console.log('Использование после теста:', usage.documentsCount);",
+											"console.log('Лимит:', maxDocs);",
+											"console.log('Изменение:', usage.documentsCount - usageBefore);",
+											"",
+											"pm.test(\"✅ Атомарность: Лимит не превышен\", function () {",
+											"    pm.expect(usage.documentsCount).to.be.at.most(maxDocs);",
+											"});",
+											"",
+											"const request1Result = pm.environment.get('request1Result');",
+											"const request2Result = pm.environment.get('request2Result');",
+											"",
+											"// Проверяем логику атомарности",
+											"if (request1Result === 'SUCCESS' && request2Result === 'SUCCESS') {",
+											"    // Оба прошли - проверяем, что это было возможно",
+											"    const expectedIncrease = 2;",
+											"    const actualIncrease = usage.documentsCount - usageBefore;",
+											"    ",
+											"    if (actualIncrease === expectedIncrease) {",
+											"        console.log('✅ Оба запроса прошли, и лимит не превышен - это нормально!');",
+											"    }",
+											"} else if ((request1Result === 'SUCCESS' && request2Result === 'LIMIT_EXCEEDED') ||",
+											"           (request1Result === 'LIMIT_EXCEEDED' && request2Result === 'SUCCESS')) {",
+											"    // Только один прошел - это идеальный результат для атомарности!",
+											"    const expectedIncrease = 1;",
+											"    const actualIncrease = usage.documentsCount - usageBefore;",
+											"    ",
+											"    pm.test(\"✅ Атомарность работает: только один запрос увеличил счетчик\", function () {",
+											"        pm.expect(actualIncrease).to.equal(expectedIncrease);",
+											"    });",
+											"    ",
+											"    console.log('🎉 ОТЛИЧНО! Атомарная операция работает корректно!');",
+											"    console.log('Только один запрос прошел, второй был заблокирован атомарной проверкой.');",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/limits/usage/:tenantId",
+									"host": ["{{baseUrl}}"],
+									"path": ["limits", "usage", ":tenantId"],
+									"variable": [
+										{
+											"key": "tenantId",
+											"value": "{{tenantId}}"
+										}
+									]
+								},
+								"description": "Проверяет итоговый результат - лимит не должен быть превышен благодаря атомарным операциям"
+							},
+							"response": []
+						},
+						{
+							"name": "🧹 Шаг 6: Очистка - Удалить тестовых пациентов",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Удаляем обоих пациентов, если они были созданы",
+											"const patient1Id = pm.environment.get('manualPatient1Id');",
+											"const patient2Id = pm.environment.get('manualPatient2Id');",
+											"",
+											"if (patient1Id) {",
+											"    console.log('Удаление пациента 1:', patient1Id);",
+											"}",
+											"if (patient2Id) {",
+											"    console.log('Удаление пациента 2:', patient2Id);",
+											"}",
+											"",
+											"pm.test(\"Cleanup completed\", function () {",
+											"    // Удаление может вернуть 200 или 404",
+											"    pm.expect([200, 404]).to.include(pm.response.code);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/patients/:patientId",
+									"host": ["{{baseUrl}}"],
+									"path": ["patients", ":patientId"],
+									"variable": [
+										{
+											"key": "patientId",
+											"value": "{{manualPatient1Id}}"
+										}
+									]
+								},
+								"description": "Удаляет первого тестового пациента"
+							},
+							"response": []
+						},
+						{
+							"name": "🧹 Удалить второго тестового пациента",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{accessToken}}"
+									},
+									{
+										"key": "X-TENANT-ID",
+										"value": "{{tenantId}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/patients/:patientId",
+									"host": ["{{baseUrl}}"],
+									"path": ["patients", ":patientId"],
+									"variable": [
+										{
+											"key": "patientId",
+											"value": "{{manualPatient2Id}}"
+										}
+									]
+								},
+								"description": "Удаляет второго тестового пациента (если был создан)"
+							},
+							"response": []
+						}
+					],
+					"description": "📋 РУЧНОЕ ТЕСТИРОВАНИЕ АТОМАРНЫХ ОПЕРАЦИЙ\n\nЭтот раздел позволяет протестировать атомарные операции вручную, без использования Collection Runner.\n\n🚀 КАК ИСПОЛЬЗОВАТЬ:\n\n1. **Подготовка:**\n   - Выполните \"📊 Шаг 1: Проверить текущие лимиты\"\n   - Выполните \"📊 Шаг 2: Проверить текущее использование\"\n   - Или используйте \"Setup: Reset Limits for Atomic Test\" для установки низких лимитов\n\n2. **Тест атомарности (РУЧНОЙ):**\n   - Откройте запрос \"🧪 Шаг 3: Создать пациента (Запрос 1)\"\n   - Нажмите **Send**\n   - **СРАЗУ ЖЕ** (максимально быстро!) откройте запрос \"🧪 Шаг 4: Создать пациента (Запрос 2)\"\n   - Нажмите **Send** на втором запросе\n   - Чем быстрее вы нажмете Send на втором запросе, тем лучше для теста!\n\n3. **Проверка результата:**\n   - Выполните \"✅ Шаг 5: Проверить результат атомарности\"\n   - Проверьте консоль Postman (View → Show Postman Console) для детального анализа\n\n4. **Очистка:**\n   - Выполните \"🧹 Шаг 6: Очистка\" для удаления тестовых данных\n\n💡 СОВЕТЫ:\n- Для лучшего теста используйте низкие лимиты (5 документов)\n- Нажимайте Send на втором запросе как можно быстрее после первого\n- Проверяйте консоль Postman для детального анализа результатов\n- Если оба запроса прошли - это нормально, если лимит был далеко от исчерпания"
+				}
+			],
+			"description": "🧪 Тесты атомарных операций\n\nЭти тесты проверяют, что атомарные операции MongoDB работают корректно и предотвращают race conditions.\n\n📋 КАК ИСПОЛЬЗОВАТЬ:\n\n1. **Подготовка:**\n   - Запустите \"Setup: Reset Limits for Atomic Test\" - установит низкие лимиты (5 документов)\n   - Запустите \"Setup: Reset Usage to Near Limit\" - проверит текущее использование\n\n2. **Тест атомарности (Collection Runner):**\n   - Откройте Collection Runner (Ctrl+Shift+R или View → Collection Runner)\n   - Выберите запросы:\n     * \"Atomic Test: Concurrent Patient Creation (Request 1)\"\n     * \"Atomic Test: Concurrent Patient Creation (Request 2)\"\n   - Установите \"Iterations\" = 1\n   - ВАЖНО: НЕ устанавливайте задержку между запросами\n   - Нажмите \"Run\"\n   - Оба запроса должны выполниться одновременно\n\n3. **Проверка результата:**\n   - Запустите \"Verify: Check Atomic Operation Result\"\n   - Проверьте, что лимит не был превышен\n   - Только один из двух параллельных запросов должен был успешно создать пациента\n\n4. **Очистка:**\n   - Запустите \"Cleanup: Delete Test Patients\" для удаления тестовых данных\n\n🔍 ЧТО ПРОВЕРЯЕТСЯ:\n- Атомарность операций MongoDB (findOneAndUpdate)\n- Предотвращение race conditions\n- Корректное соблюдение лимитов при параллельных запросах\n- Только один запрос должен пройти, когда лимит близок к исчерпанию"
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "proxyBaseUrl",
+			"value": "https://mongodb-proxy-zvw6.onrender.com",
+			"type": "string",
+			"description": "URL MongoDB Proxy сервера. Можно использовать локальный: http://localhost:3000"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "tenantId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+
+

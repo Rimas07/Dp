@@ -27,23 +27,13 @@ export class MonitoringInterceptor implements NestInterceptor {
             request.tenantId ||
             'unknown';
 
-        console.log('🔍 Monitoring interceptor triggered:', {
-            method,
-            path,
-            tenantId,
-        });
+        // Убрали verbose логи - данные записываются в monitoringService
         return next.handle().pipe(
             tap({
                 next: () => {
                     const duration = Date.now() - startTime;
                     const statusCode = response.statusCode;
-                    console.log('✅ Recording request:', {
-                        tenantId,
-                        method,
-                        path,
-                        statusCode,
-                        duration,
-                    });
+                    // Только записываем в monitoring, без console.log
                     this.monitoringService.recordRequest(
                         tenantId,
                         method,
@@ -55,13 +45,16 @@ export class MonitoringInterceptor implements NestInterceptor {
                 error: (error) => {
                     const duration = Date.now() - startTime;
                     const statusCode = error.status || 500;
-                    console.log('❌ Recording error:', {
-                        tenantId,
-                        method,
-                        path,
-                        statusCode,
-                        duration,
-                    });
+                    // Ошибки логируем только если это критическая ошибка (5xx)
+                    if (statusCode >= 500) {
+                        console.error('❌ [Monitoring] Server error:', {
+                            tenantId,
+                            method,
+                            path,
+                            statusCode,
+                            duration,
+                        });
+                    }
                     this.monitoringService.recordRequest(
                         tenantId,
                         method,
