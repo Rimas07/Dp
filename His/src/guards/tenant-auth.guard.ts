@@ -3,9 +3,10 @@ import {
     ExecutionContext,
     Injectable,
     UnauthorizedException,
-    
+
 } from '@nestjs/common';
 
+import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { AuthService } from 'src/auth/auth.service';
@@ -18,9 +19,19 @@ export class TenantAuthenticationGuard implements CanActivate {
         private jwtService: JwtService,
         private authService: AuthService,
         private usersService: UsersService,
+        private reflector: Reflector,
     ) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
+        // Check if the route is marked as public
+        const isPublic = this.reflector.getAllAndOverride<boolean>('isPublic', [
+            context.getHandler(),
+            context.getClass(),
+        ]);
+        if (isPublic) {
+            return true;
+        }
+
         const request = context.switchToHttp().getRequest();
         //Make sure tenant middleware was applied
         if (!request.tenantId) {

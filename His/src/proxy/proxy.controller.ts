@@ -1,17 +1,24 @@
 /* eslint-disable prettier/prettier */
-import { Controller, Get, Post, Req, Res, Body } from '@nestjs/common';
+import { Controller, Get, Post, Req, Res, Body, UseGuards, SetMetadata } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ProxyService } from './proxy.service';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { TenantAuthenticationGuard } from 'src/guards/tenant-auth.guard';
+
+export const IS_PUBLIC_KEY = 'isPublic';
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 @ApiTags('Proxy')
+@ApiBearerAuth('bearer')
+@UseGuards(TenantAuthenticationGuard)
 @Controller('proxy')
 export class ProxyController {
     constructor(private readonly proxyService: ProxyService) { }
 
     /**
-     * Health check 
+     * Health check
      */
+    @Public()
     @Get('health')
     @ApiOperation({
         summary: 'Proxy health check',
