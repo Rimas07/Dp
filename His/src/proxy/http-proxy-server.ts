@@ -808,6 +808,7 @@ export class HttpProxyServer {
 
     /**
      * Публичный метод для обработки запросов напрямую (для использования в NestJS контроллерах)
+     * NestJS уже обработал body, поэтому мы пропускаем body parsing Express
      */
     public async handleRequest(req: express.Request, res: express.Response) {
         const startTime = Date.now();
@@ -831,7 +832,8 @@ export class HttpProxyServer {
         let statusCode = 500;
 
         try {
-            console.log('🔄 [HTTP Proxy] Request intercepted:', req.method, path, '| path:', req.path);
+            console.log('🔄 [HTTP Proxy] Request intercepted via NestJS:', req.method, path, '| path:', req.path);
+            console.log('📋 [HTTP Proxy] Body already parsed by NestJS:', !!req.body);
             console.log('📋 [HTTP Proxy] Headers check:', {
                 'headers-exists': !!req.headers,
                 'x-tenant-id': req.headers?.['x-tenant-id'],

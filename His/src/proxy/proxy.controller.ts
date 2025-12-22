@@ -41,8 +41,8 @@ export class ProxyController {
         try {
             console.log('🔄 [ProxyController] Intercepted request to MongoDB:', req.method, req.path);
 
-            const proxyApp = this.proxyService.getProxyApp();
-            proxyApp(req, res);
+            // Use handleProxyRequest instead of getProxyApp to avoid stream issues
+            await this.proxyService.handleProxyRequest(req, res);
 
         } catch (error) {
             console.error('❌ [ProxyController] error:', error);
@@ -63,8 +63,8 @@ export class ProxyController {
         try {
             console.log('🔄 [ProxyController] Intercepted GET request to MongoDB:', req.method, req.path);
 
-            const proxyApp = this.proxyService.getProxyApp();
-            proxyApp(req, res);
+            // Use handleProxyRequest instead of getProxyApp to avoid stream issues
+            await this.proxyService.handleProxyRequest(req, res);
 
         } catch (error) {
             console.error('❌ [ProxyController] error:', error);
