@@ -68,10 +68,8 @@ export class HttpProxyServer {
         // Используем middleware для всех путей, начинающихся с /mongo/
         this.app.use('/mongo', globalLimiter);
 
-        // Обрабатываем все HTTP методы для путей /mongo/*
-        // Используем use() для обработки всех подпутей /mongo/*
-        // Express автоматически удаляет префикс '/mongo' из req.path
-        this.app.use('/mongo', async (req, res) => {
+        // Создаем обработчик для всех методов
+        const mongoHandler = async (req: express.Request, res: express.Response) => {
             const startTime = Date.now();
             const method = req.method;
             const path = req.originalUrl || req.url;
@@ -79,7 +77,8 @@ export class HttpProxyServer {
             let statusCode = 500;
 
             try {
-                // Убрали verbose логи - запрос обрабатывается автоматически
+                // Логируем входящий запрос для отладки
+                console.log(`📥 [Proxy] ${method} ${path} - req.path: ${req.path}`);
 
                 const authResult = await this.checkAuthentication(req);
                 if (!authResult.success || !authResult.tenantId) {
@@ -135,7 +134,18 @@ export class HttpProxyServer {
                     );
                 }
             }
+        };
+
+        // Обрабатываем все HTTP методы для путей /mongo/*
+        // Используем use() для обработки всех подпутей /mongo/*
+        // Express автоматически удаляет префикс '/mongo' из req.path
+        // use() обрабатывает все HTTP методы (GET, POST, PUT, DELETE и т.д.)
+        // Добавляем обработку для всех методов явно для надежности
+        ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'].forEach(method => {
+            (this.app as any)[method]('/mongo*', mongoHandler);
         });
+        // Также используем use() для обработки всех подпутей
+        this.app.use('/mongo', mongoHandler);
 
         // Health check
         this.app.get('/proxy/health', (req, res) => {
