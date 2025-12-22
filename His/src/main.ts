@@ -37,16 +37,27 @@ async function bootstrap() {
   app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   
+  // Подключаем прокси-сервер для обработки запросов к /mongo/* напрямую
+  // Это нужно для Render.com, где запросы идут напрямую к /mongo/patients
+  const proxyService = app.get(ProxyService);
+  const proxyApp = proxyService.getProxyApp();
+  // Используем Express middleware для обработки всех запросов к /mongo/*
+  // Важно: это должно быть после CORS, но до других middleware
+  app.use('/mongo', (req, res, next) => {
+    proxyApp(req, res);
+  });
+  
   // HTTP Proxy доступен через ProxyController на /proxy/mongo/*path
+  // И напрямую через /mongo/*path (для Render.com)
   logger.log(`🚀 HTTP Proxy available via ProxyController`);
   logger.log(`📡 MongoDB Proxy: http://localhost:${configService.get<number>('server.port') || 3000}/proxy/mongo/*path`);
+  logger.log(`📡 MongoDB Proxy (direct): http://localhost:${configService.get<number>('server.port') || 3000}/mongo/*path`);
 
   // Автоматический запуск отдельного HTTP Proxy сервера на порту 3001 для локальной разработки
-  // В облаке (Render.com) используем только встроенный прокси через ProxyController
+  // В облаке (Render.com) используем встроенный прокси через middleware выше
   const isLocalDevelopment = !process.env.RENDER || process.env.NODE_ENV === 'development';
   if (isLocalDevelopment) {
     try {
-      const proxyService = app.get(ProxyService);
       proxyService.startProxyServer(3001);
       logger.log(`🚀 HTTP Proxy Server started on port 3001 for local development`);
       logger.log(`📡 Local MongoDB Proxy: http://localhost:3001/mongo/*path`);
