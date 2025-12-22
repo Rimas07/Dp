@@ -46,6 +46,7 @@ async function bootstrap() {
   const isLocalDevelopment = !process.env.RENDER || process.env.NODE_ENV === 'development';
   if (isLocalDevelopment) {
     try {
+      const proxyService = app.get(ProxyService);
       proxyService.startProxyServer(3001);
       logger.log(`🚀 HTTP Proxy Server started on port 3001 for local development`);
       logger.log(`📡 Local MongoDB Proxy: http://localhost:3001/mongo/*path`);
