@@ -54,7 +54,7 @@ export class HttpProxyServer {
         // 1️⃣ Глобальный rate limiter - защита от DDoS
         const globalLimiter = rateLimit({
             windowMs: 1 * 60 * 1000, // 1 минута
-            max: 5, // максимум 100 запросов с одного IP за минуту
+            max: 100, // максимум 100 запросов с одного IP за минуту
             message: {
                 success: false,
                 error: 'Too many requests from this IP',
@@ -68,7 +68,7 @@ export class HttpProxyServer {
         // Используем middleware для всех путей, начинающихся с /mongo/
         this.app.use('/mongo', globalLimiter);
 
-        // Обрабатываем все HTTP методы для путей /mongo/*
+        // Обрабатываем все HTTP методы для путей /mongo/* (GET, POST, PUT, DELETE и т.д.)
         // Используем use() для обработки всех подпутей /mongo/*
         // Express автоматически удаляет префикс '/mongo' из req.path
         this.app.use('/mongo', async (req, res) => {
@@ -410,7 +410,9 @@ export class HttpProxyServer {
     }
 
     private modifyRequest(req: express.Request, tenantId: string): any {
-        const modifiedBody = { ...req.body };
+        // Для GET запросов используем пустой body с дефолтной операцией find
+        const modifiedBody = req.method === 'GET' ? { operation: 'find' } : { ...req.body };
+
         if (modifiedBody.filter) {
             modifiedBody.filter = {
                 ...modifiedBody.filter,
@@ -425,6 +427,7 @@ export class HttpProxyServer {
         }
 
         console.log('🔧 [Proxy] Modified request:', {
+            method: req.method,
             original: req.body,
             modified: modifiedBody
         });
@@ -649,7 +652,8 @@ export class HttpProxyServer {
     }
 
     private detectOperation(req: express.Request) {
-        const operation = req.body.operation || 'find';
+        // Для GET запросов всегда используем операцию 'find'
+        const operation = req.method === 'GET' ? 'find' : (req.body.operation || 'find');
         let documents = 0;
 
         switch (operation) {

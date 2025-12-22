@@ -34,12 +34,34 @@ export class ProxyController {
 
     @Post('mongo/*path')
     @ApiOperation({
-        summary: 'HTTP Proxy to MongoDB',
+        summary: 'HTTP Proxy to MongoDB (POST)',
         description: 'Настоящий HTTP Proxy который перехватывает и пересылает запросы в MongoDB'
     })
     async proxyToMongoDB(@Req() req: Request, @Res() res: Response, @Body() body: any) {
         try {
             console.log('🔄 [ProxyController] Intercepted request to MongoDB:', req.method, req.path);
+
+            const proxyApp = this.proxyService.getProxyApp();
+            proxyApp(req, res);
+
+        } catch (error) {
+            console.error('❌ [ProxyController] error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Proxy controller error',
+                message: error.message
+            });
+        }
+    }
+
+    @Get('mongo/*path')
+    @ApiOperation({
+        summary: 'HTTP Proxy to MongoDB (GET)',
+        description: 'GET запросы к MongoDB через прокси. Для операций чтения используйте этот метод.'
+    })
+    async proxyToMongoDBGet(@Req() req: Request, @Res() res: Response) {
+        try {
+            console.log('🔄 [ProxyController] Intercepted GET request to MongoDB:', req.method, req.path);
 
             const proxyApp = this.proxyService.getProxyApp();
             proxyApp(req, res);
