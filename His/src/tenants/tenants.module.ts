@@ -24,4 +24,4 @@ import { AuthModule } from 'src/auth/auth.module';
   providers: [TenantsService, tenantConnectionProvider],
   exports: [TenantsService, tenantConnectionProvider],
 })
-export class TenantsModule { }
+export class TenantsModule { }//
