@@ -5,13 +5,10 @@ import { Document } from 'mongoose';
 export class DataLimit extends Document {
     @Prop({ required: true, unique: true })
     tenantId: string;
-
     @Prop({ required: true, default: 1000 })
     maxDocuments: number;
-
     @Prop({ required: true, default: 51200 }) 
     maxDataSizeKB: number; 
-
     @Prop({ required: true, default: 1000 })
     monthlyQueries: number; 
 }

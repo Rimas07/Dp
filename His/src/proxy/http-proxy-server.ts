@@ -23,9 +23,6 @@ export class HttpProxyServer {
     private usersService: UsersService;
     private monitoringService: MonitoringService;
 
-    // Rate limiting storage
-    private tenantRequestCounts: Map<string, { count: number; resetTime: number }> = new Map();
-
     constructor(
         authService: AuthService,
         limitsService: LimitsService,
@@ -51,10 +48,11 @@ export class HttpProxyServer {
     }
 
     private setupProxy() {
-        // 1️⃣ Глобальный rate limiter - защита от DDoS
+        // 1️⃣ Глобальный rate limiter - защита от DDoS (для Express сервера)
+        // Примечание: Для NestJS контроллеров используется ThrottlerGuard
         const globalLimiter = rateLimit({
             windowMs: 1 * 60 * 1000, // 1 минута
-            max: 5, // максимум 100 запросов с одного IP за минуту
+            max: 5, // максимум 5 запросов с одного IP за минуту
             message: {
                 success: false,
                 error: 'Too many requests from this IP',
@@ -65,12 +63,9 @@ export class HttpProxyServer {
         });
 
         // Применяем глобальный лимитер ко всем /mongo/* запросам
-        // Используем middleware для всех путей, начинающихся с /mongo/
         this.app.use('/mongo', globalLimiter);
 
-        // Обрабатываем все HTTP методы для путей /mongo/* (GET, POST, PUT, DELETE и т.д.)
-        // Используем use() для обработки всех подпутей /mongo/*
-        // Express автоматически удаляет префикс '/mongo' из req.path
+        // Обрабатываем все HTTP методы для путей /mongo/*
         this.app.use('/mongo', async (req, res) => {
             const startTime = Date.now();
             const method = req.method;
@@ -89,18 +84,6 @@ export class HttpProxyServer {
 
                 tenantId = authResult.tenantId;
 
-                // 2️⃣ Rate limiting по tenantId
-                const rateLimitResult = this.checkRateLimit(authResult.tenantId);
-                if (!rateLimitResult.success) {
-                    statusCode = 429;
-                    return res.status(429).json(rateLimitResult);
-                }
-
-                const tenantResult = await this.checkTenant(req, authResult.tenantId);
-                if (!tenantResult.success) {
-                    statusCode = 403;
-                    return res.status(403).json(tenantResult);
-                }
                 const limitsResult = await this.checkDataLimits(req, authResult.tenantId);
                 if (!limitsResult.success) {
                     statusCode = 429;
@@ -110,13 +93,14 @@ export class HttpProxyServer {
 
                 const mongoResponse = await this.forwardToMongoDB(req, authResult.tenantId, modifiedBody);
 
-                await this.logRequest(req, authResult.tenantId, mongoResponse);
                 statusCode = 200;
+                await this.logRequest(req, authResult.tenantId, mongoResponse, startTime, statusCode);
                 res.json(mongoResponse);
 
             } catch (error) {
                 console.error('❌ [HTTP Proxy] Error:', error);
                 statusCode = error.status || 500;
+                await this.logRequest(req, tenantId, null, startTime, statusCode);
                 res.status(statusCode).json({
                     success: false,
                     error: 'Proxy error',
@@ -144,8 +128,12 @@ export class HttpProxyServer {
 
         // Rate limiting statistics endpoint
         this.app.get('/proxy/rate-limit-stats', (req, res) => {
-            const stats = this.getRateLimitStats();
-            res.json(stats);
+            res.json({
+                success: true,
+                message: 'Rate limiting is handled by express-rate-limit middleware',
+                note: 'For NestJS endpoints, rate limiting is handled by @nestjs/throttler',
+                expressServerLimit: '5 requests per minute per IP'
+            });
         });
 
         // Prometheus metrics endpoint
@@ -157,30 +145,22 @@ export class HttpProxyServer {
                 res.status(500).end(error);
             }
         });
-
-        // Периодическая очистка старых данных rate limiting (каждые 5 минут)
-        setInterval(() => {
-            this.cleanupOldRateLimitData();
-        }, 5 * 60 * 1000);
     }
 
     private async checkAuthentication(req: express.Request) {
         try {
-            // Проверяем что headers существуют
             if (!req.headers) {
                 console.error('❌ [Proxy] req.headers is undefined');
                 return { success: false, error: 'Request headers are missing' };
             }
 
             // Вариант 1: Проверяем X-Tenant-ID заголовок (для тестирования)
-            // Express автоматически приводит заголовки к нижнему регистру, но проверим все варианты
-            const headerTenantId = (req.headers['x-tenant-id'] || 
-                                   req.headers['X-TENANT-ID'] || 
-                                   req.headers['X-Tenant-ID']) as string;
-            
+            const headerTenantId = (req.headers['x-tenant-id'] ||
+                req.headers['X-TENANT-ID'] ||
+                req.headers['X-Tenant-ID']) as string;
+
             if (headerTenantId) {
                 console.log(`🔍 [Proxy] Uses tenantId from header: ${headerTenantId}`);
-                // Проверяем что тенант существует
                 const tenant = await this.tenantsService.getTenantById(headerTenantId);
                 if (tenant) {
                     return {
@@ -192,11 +172,9 @@ export class HttpProxyServer {
                 } else {
                     console.log(`⚠️ [Proxy] Tenant not found: ${headerTenantId}`);
                 }
-            } else {
-                console.log(`🔍 [Proxy] No X-TENANT-ID header found. Available headers:`, Object.keys(req.headers));
             }
 
-            // Вариант 2: Используем JWT токен
+            // Вариант 2: Используем JWT токен через AuthService
             const authHeader = req.headers.authorization;
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
                 return { success: false, error: 'No valid token provided. Use Authorization: Bearer <token> or X-Tenant-ID header' };
@@ -204,175 +182,31 @@ export class HttpProxyServer {
 
             const token = authHeader.substring(7);
 
-           
+            // Используем существующий метод AuthService вместо дублирования логики
+            const validationResult = await this.authService.validateToken(token);
 
-            // Вариант 3: Реальный JWT токен
-            try {
-                // Получаем userId из токена (без проверки секрета пока)
-                const decoded = this.jwtService.decode(token) as any;
-                if (decoded && decoded.userId) {
-                    // Получаем пользователя из БД чтобы узнать его tenantId
-                    const user = await this.usersService.getUserById(decoded.userId);
-                    if (user && user.tenantId) {
-                        console.log(`🔍 [Proxy] The tenantId from the JWT token is used: ${user.tenantId}`);
-
-                        // Проверяем валидность токена с правильным секретом
-                        const secret = await this.authService.fetchAccessTokenSecretSigningKey(user.tenantId);
-                        await this.jwtService.verify(token, { secret });
-
-                        return {
-                            success: true,
-                            tenantId: user.tenantId,
-                            userId: decoded.userId,
-                            source: 'jwt-token'
-                        };
-                    }
-                }
-            } catch (jwtError) {
-                console.log(`⚠️ [Proxy] JWT token validation error: ${jwtError.message}`);
-                // Продолжаем искать другие варианты
+            if (validationResult.success) {
+                console.log(`🔍 [Proxy] The tenantId from the JWT token is used: ${validationResult.tenantId}`);
+                return {
+                    success: true,
+                    tenantId: validationResult.tenantId,
+                    userId: validationResult.userId,
+                    source: 'jwt-token'
+                };
             }
 
-            return { success: false, error: 'Invalid token. Provide valid JWT token or X-Tenant-ID header' };
+            return { success: false, error: validationResult.error || 'Invalid token' };
         } catch (error) {
             console.error('❌ [Proxy] Authentication error:', error);
             return { success: false, error: `Authentication failed: ${error.message}` };
         }
     }
 
-    private async checkTenant(req: express.Request, tenantId: string) {
-        try {
-            const tenant = await this.tenantsService.getTenantById(tenantId);
-
-            // Для тестирования с mock токеном - пропускаем если тенанта нет
-            // В продакшене это должно быть строгой проверкой
-            if (!tenant) {
-                console.log(`⚠️ [Proxy] Tenant ${tenantId} not found in DB, but continuing for testing`);
-                // Возвращаем успех для тестирования, но предупреждаем
-                return {
-                    success: true,
-                    tenant: { tenantId },
-                    warning: 'Tenant not found in DB, proceeding for testing'
-                };
-            }
-
-            return { success: true, tenant };
-        } catch (error) {
-            console.error('❌ [Proxy] Tenant validation error:', error);
-            // Для тестирования - не блокируем запрос
-            return {
-                success: true,
-                tenant: { tenantId },
-                warning: 'Tenant validation error, proceeding for testing'
-            };
-        }
-    }
-
-    /**
-     * 🚦 Rate Limiting по tenantId
-     * Ограничивает количество запросов от одного tenant в единицу времени
-     */
-    private checkRateLimit(tenantId: string): { success: boolean; error?: string; details?: any } {
-        const now = Date.now();
-        const windowMs = 60 * 1000; // 1 минута
-        const maxRequestsPerWindow = 5; // 50 запросов в минуту для одного tenant
-
-        // Получаем или создаем запись для tenant
-        let tenantData = this.tenantRequestCounts.get(tenantId);
-
-        if (!tenantData || now > tenantData.resetTime) {
-            // Создаем новое окно или сбрасываем старое
-            tenantData = {
-                count: 1,
-                resetTime: now + windowMs
-            };
-            this.tenantRequestCounts.set(tenantId, tenantData);
-
-            console.log(`🚦 [Rate Limit] New window for tenant ${tenantId}: 1/${maxRequestsPerWindow} requests`);
-            return { success: true };
-        }
-
-        // Увеличиваем счетчик
-        tenantData.count++;
-
-        // Вычисляем оставшееся время до сброса
-        const timeUntilReset = Math.ceil((tenantData.resetTime - now) / 1000);
-
-        console.log(`🚦 [Rate Limit] Tenant ${tenantId}: ${tenantData.count}/${maxRequestsPerWindow} requests`);
-
-        // Проверяем лимит
-        if (tenantData.count > maxRequestsPerWindow) {
-            console.log(`❌ [Rate Limit] BLOCKED! Tenant ${tenantId} exceeded limit of ${maxRequestsPerWindow} requests per minute`);
-            return {
-                success: false,
-                error: 'Rate limit exceeded',
-                details: {
-                    message: `Too many requests from tenant ${tenantId}`,
-                    limit: maxRequestsPerWindow,
-                    windowMs: windowMs,
-                    current: tenantData.count,
-                    retryAfter: timeUntilReset,
-                    resetTime: new Date(tenantData.resetTime).toISOString()
-                }
-            };
-        }
-
-        return {
-            success: true,
-            details: {
-                remaining: maxRequestsPerWindow - tenantData.count,
-                resetIn: timeUntilReset
-            }
-        };
-    }
-
     private async checkDataLimits(req: express.Request, tenantId: string) {
         try {
-            // 1️⃣ СНАЧАЛА получить текущий usage
-            const currentUsage = await this.limitsService.getUsageForTenant(tenantId);
-            const currentLimits = await this.limitsService.getLimitsForTenant(tenantId);
-
             const operation = this.detectOperation(req);
             const dataSize = this.calculateDataSize(req);
 
-            // 2️⃣ ЛОГИРОВАТЬ ДО операции
-            console.log(`🔍 [Limits] Checking limits for tenant: ${tenantId}`);
-            console.log(`📊 [Limits] Operation: ${operation.type}`);
-            console.log(`   Adding: ${operation.documents} documents, ${dataSize} KB`);
-            console.log('');
-
-            console.log('📈 [Limits] DOCUMENTS:');
-            console.log(`   Current: ${currentUsage.documentsCount}/${currentLimits.maxDocuments}`);
-            console.log(`   After: ${currentUsage.documentsCount + operation.documents}/${currentLimits.maxDocuments}`);
-            console.log(`   Remaining: ${currentLimits.maxDocuments - currentUsage.documentsCount} documents`);
-            console.log('');
-
-            console.log('💾 [Limits] DATA SIZE:');
-            console.log(`   Current: ${currentUsage.dataSizeKB} KB / ${currentLimits.maxDataSizeKB} KB`);
-            console.log(`   After: ${currentUsage.dataSizeKB + dataSize} KB / ${currentLimits.maxDataSizeKB} KB`);
-            const remainingDataSize = currentLimits.maxDataSizeKB - currentUsage.dataSizeKB;
-            console.log(`   Remaining: ${remainingDataSize} KB`);
-            
-            // Предупреждение о приближении лимита размера данных
-            const dataSizeUsagePercent = (currentUsage.dataSizeKB / currentLimits.maxDataSizeKB) * 100;
-            const remainingDataSizePercent = (remainingDataSize / currentLimits.maxDataSizeKB) * 100;
-            if (remainingDataSizePercent <= 10) {
-                console.log(`   ⚠️  [WARNING] CRITICAL: Data size limit almost reached! Only ${remainingDataSizePercent.toFixed(1)}% remaining (${remainingDataSize} KB)`);
-            } else if (remainingDataSizePercent <= 20) {
-                console.log(`   ⚠️  [WARNING] Data size limit approaching! Only ${remainingDataSizePercent.toFixed(1)}% remaining (${remainingDataSize} KB)`);
-            }
-            console.log('');
-
-            // Предупреждение о приближении лимита документов
-            const remainingDocuments = currentLimits.maxDocuments - currentUsage.documentsCount;
-            const remainingDocumentsPercent = (remainingDocuments / currentLimits.maxDocuments) * 100;
-            if (remainingDocumentsPercent <= 10) {
-                console.log(`⚠️  [WARNING] CRITICAL: Documents limit almost reached! Only ${remainingDocumentsPercent.toFixed(1)}% remaining (${remainingDocuments} documents)`);
-            } else if (remainingDocumentsPercent <= 20) {
-                console.log(`⚠️  [WARNING] Documents limit approaching! Only ${remainingDocumentsPercent.toFixed(1)}% remaining (${remainingDocuments} documents)`);
-            }
-
-            // 3️⃣ ВЫПОЛНИТЬ проверку
             const context = {
                 requestId: `proxy-${Date.now()}`,
                 method: req.method,
@@ -381,6 +215,7 @@ export class HttpProxyServer {
                 userAgent: req.headers['user-agent']
             };
 
+            // LimitsService уже выполняет все проверки, логирование и warnings
             if (operation.documents > 0) {
                 await this.limitsService.checkDocumentsLimit(tenantId, operation.documents, context);
             }
@@ -389,18 +224,9 @@ export class HttpProxyServer {
             }
             await this.limitsService.checkQueriesLimit(tenantId, context);
 
-            // 4️⃣ ЛОГИРОВАТЬ успех
-            console.log('✅ [Limits] All checks passed - operation allowed');
-            console.log('═══════════════════════════════════════════════════════\n');
-
             return { success: true };
         } catch (error) {
-            // 5️⃣ ЛОГИРОВАТЬ ошибку
-            console.log('❌ [Limits] LIMIT EXCEEDED!');
-            console.log(`   Reason: ${error.message}`);
-            console.log('🚫 Operation blocked!');
-            console.log('═══════════════════════════════════════════════════════\n');
-
+            console.log('❌ [Limits] LIMIT EXCEEDED:', error.message);
             return {
                 success: false,
                 error: 'Data limits exceeded',
@@ -625,9 +451,9 @@ export class HttpProxyServer {
         }
     }
 
-    private async logRequest(req: express.Request, tenantId: string, response: any) {
+    private async logRequest(req: express.Request, tenantId: string, response: any, startTime: number, statusCode: number) {
         try {
-            // Игнорируем запросы к служебным эндпоинтам (metrics, health, rate-limit-stats)
+            // Игнорируем запросы к служебным эндпоинтам
             const ignoredPaths = ['/metrics', '/proxy/metrics', '/proxy/health', '/proxy/rate-limit-stats'];
             const requestPath = req.path || req.url;
 
@@ -636,23 +462,26 @@ export class HttpProxyServer {
                 return;
             }
 
+            const operation = this.detectOperation(req);
+            const eventType = this.mapOperationToEventType(operation.type);
+
             await this.auditService.emit({
                 timestamp: new Date().toISOString(),
-                level: 'info',
+                level: statusCode >= 400 ? 'error' : 'info',
                 requestId: `proxy-${Date.now()}`,
                 tenantId: tenantId,
                 method: req.method,
                 path: req.path,
-                statusCode: 200,
-                durationMs: 0,
+                statusCode: statusCode,
+                durationMs: Date.now() - startTime,
                 message: `Proxy request processed for tenant ${tenantId}`,
-                eventType: 'PATIENT_READ',
+                eventType: eventType,
                 requestBody: req.body,
                 responseBody: response,
                 metadata: {
                     service: 'HttpProxyServer',
                     action: 'forwardRequest',
-                    operation: req.body.operation
+                    operation: operation.type
                 }
             });
         } catch (error) {
@@ -660,8 +489,23 @@ export class HttpProxyServer {
         }
     }
 
+    private mapOperationToEventType(operation: string): 'PATIENT_READ' | 'PATIENT_CREATE' | 'PATIENT_UPDATE' | 'PATIENT_DELETE' {
+        const mapping: Record<string, 'PATIENT_READ' | 'PATIENT_CREATE' | 'PATIENT_UPDATE' | 'PATIENT_DELETE'> = {
+            'insertOne': 'PATIENT_CREATE',
+            'create': 'PATIENT_CREATE',
+            'insertMany': 'PATIENT_CREATE',
+            'createMany': 'PATIENT_CREATE',
+            'updateOne': 'PATIENT_UPDATE',
+            'update': 'PATIENT_UPDATE',
+            'updateMany': 'PATIENT_UPDATE',
+            'deleteOne': 'PATIENT_DELETE',
+            'delete': 'PATIENT_DELETE',
+            'deleteMany': 'PATIENT_DELETE'
+        };
+        return mapping[operation] || 'PATIENT_READ';
+    }
+
     private detectOperation(req: express.Request) {
-        // Для GET запросов всегда используем операцию 'find'
         const operation = req.method === 'GET' ? 'find' : (req.body.operation || 'find');
         let documents = 0;
 
@@ -678,7 +522,7 @@ export class HttpProxyServer {
             case 'update':
             case 'deleteOne':
             case 'delete':
-                documents = 0; // Для update/delete не увеличиваем счетчик документов
+                documents = 0;
                 break;
             case 'updateMany':
             case 'deleteMany':
@@ -689,7 +533,7 @@ export class HttpProxyServer {
             case 'findById':
             case 'count':
             case 'countDocuments':
-                documents = 0; // Read операции не влияют на количество документов
+                documents = 0;
                 break;
             default:
                 documents = 0;
@@ -704,110 +548,22 @@ export class HttpProxyServer {
     }
 
     private extractCollectionName(path: string): string {
-        // Извлекаем имя коллекции из пути /mongo/patients -> patients
-        const parts = path.split('/').filter(p => p); // Убираем пустые части
+        const parts = path.split('/').filter(p => p);
         const collectionName = parts[parts.length - 1] || 'default';
 
-        // Mongoose автоматически конвертирует имя модели в множественное число
-        // Patient -> patients, но для коллекций используем как есть
         console.log(`🔍 [Proxy] Extracted collection name from path ${path}: ${collectionName}`);
         return collectionName;
     }
 
-    /**
-     * 📊 Получить статистику rate limiting
-     */
-    private getRateLimitStats() {
-        const now = Date.now();
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        const stats: Array<{
-            tenantId: string;
-            requestCount: number;
-            isActive: boolean;
-            resetTime: string;
-            timeUntilResetSeconds: number;
-        }> = [];
-
-        for (const [tenantId, data] of this.tenantRequestCounts.entries()) {
-            const isActive = now < data.resetTime;
-            const timeUntilReset = isActive ? Math.ceil((data.resetTime - now) / 1000) : 0;
-
-            stats.push({
-                tenantId,
-                requestCount: data.count,
-                isActive,
-                resetTime: new Date(data.resetTime).toISOString(),
-                timeUntilResetSeconds: timeUntilReset
-            });
-        }
-
-        return {
-            success: true,
-            totalTenants: stats.length,
-            activeTenants: stats.filter(s => s.isActive).length,
-            tenants: stats,
-            timestamp: new Date().toISOString()
-        };
-    }
-
-    /**
-     * 🧹 Очистка старых данных rate limiting
-     */
-    private cleanupOldRateLimitData() {
-        const now = Date.now();
-        let cleanedCount = 0;
-
-        for (const [tenantId, data] of this.tenantRequestCounts.entries()) {
-            // Удаляем записи, которые истекли более 5 минут назад
-            if (now > data.resetTime + 5 * 60 * 1000) {
-                this.tenantRequestCounts.delete(tenantId);
-                cleanedCount++;
-            }
-        }
-
-        if (cleanedCount > 0) {
-            console.log(`🧹 [Rate Limit] Cleaned up ${cleanedCount} old tenant records`);
-        }
-    }
-
     public start(port: number = 3001) {
         this.app.listen(port, () => {
-        console.log(`🚀 [HTTP Proxy] Server started on port ${port}`);
-        console.log(`📡 [HTTP Proxy] MongoDB Proxy: http://localhost:${port}/mongo/*path`);
-        console.log(`🏥 [HTTP Proxy] Health Check: http://localhost:${port}/proxy/health`);
-        console.log(`🚦 [HTTP Proxy] Rate Limit Stats: http://localhost:${port}/proxy/rate-limit-stats`);
-        console.log(`⚡ [HTTP Proxy] Rate Limiting active:`);
-        console.log(`   - Global limit: 100 requests/min per IP`);
-        console.log(`   - Tenant limit: 50 requests/min`);
+            console.log(`🚀 [HTTP Proxy] Server started on port ${port}`);
+            console.log(`📡 [HTTP Proxy] MongoDB Proxy: http://localhost:${port}/mongo/*path`);
+            console.log(`🏥 [HTTP Proxy] Health Check: http://localhost:${port}/proxy/health`);
+            console.log(`🚦 [HTTP Proxy] Rate Limit Stats: http://localhost:${port}/proxy/rate-limit-stats`);
+            console.log(`⚡ [HTTP Proxy] Rate Limiting active:`);
+            console.log(`   - Express server limit: 5 requests/min per IP`);
+            console.log(`   - NestJS endpoints: 5 requests/min (via @nestjs/throttler)`);
         });
     }
 
@@ -817,21 +573,16 @@ export class HttpProxyServer {
 
     /**
      * Публичный метод для обработки запросов напрямую (для использования в NestJS контроллерах)
-     * NestJS уже обработал body, поэтому мы пропускаем body parsing Express
      */
     public async handleRequest(req: express.Request, res: express.Response) {
         const startTime = Date.now();
         const method = req.method;
-        // Используем originalUrl для получения полного пути, включая query параметры
         let fullPath = req.originalUrl || req.url;
-        // Если путь начинается с /proxy/mongo, убираем префикс /proxy
         if (fullPath.startsWith('/proxy/mongo')) {
             fullPath = fullPath.replace('/proxy/mongo', '/mongo');
         }
         const path = fullPath;
-        // Сохраняем оригинальный path и устанавливаем правильный путь для обработки
         const originalPath = req.path;
-        // Используем Object.defineProperty для установки path без создания нового объекта
         Object.defineProperty(req, 'path', {
             value: fullPath.split('?')[0],
             writable: true,
@@ -841,39 +592,17 @@ export class HttpProxyServer {
         let statusCode = 500;
 
         try {
-            console.log('🔄 [HTTP Proxy] Request intercepted via NestJS:', req.method, path, '| path:', req.path);
-            console.log('📋 [HTTP Proxy] Body already parsed by NestJS:', !!req.body);
-            console.log('📋 [HTTP Proxy] Headers check:', {
-                'headers-exists': !!req.headers,
-                'x-tenant-id': req.headers?.['x-tenant-id'],
-                'X-TENANT-ID': req.headers?.['X-TENANT-ID'],
-                'all-header-keys': req.headers ? Object.keys(req.headers) : 'no headers'
-            });
+            console.log('🔄 [HTTP Proxy] Request intercepted via NestJS:', req.method, path);
 
             const authResult = await this.checkAuthentication(req);
             if (!authResult.success || !authResult.tenantId) {
                 statusCode = 401;
-                // Восстанавливаем оригинальный path перед возвратом
                 Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
                 return res.status(401).json(authResult);
             }
 
             tenantId = authResult.tenantId;
 
-            // 2️⃣ Rate limiting по tenantId
-            const rateLimitResult = this.checkRateLimit(authResult.tenantId);
-            if (!rateLimitResult.success) {
-                statusCode = 429;
-                Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
-                return res.status(429).json(rateLimitResult);
-            }
-
-            const tenantResult = await this.checkTenant(req, authResult.tenantId);
-            if (!tenantResult.success) {
-                statusCode = 403;
-                Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
-                return res.status(403).json(tenantResult);
-            }
             const limitsResult = await this.checkDataLimits(req, authResult.tenantId);
             if (!limitsResult.success) {
                 statusCode = 429;
@@ -884,24 +613,22 @@ export class HttpProxyServer {
 
             const mongoResponse = await this.forwardToMongoDB(req, authResult.tenantId, modifiedBody);
 
-            await this.logRequest(req, authResult.tenantId, mongoResponse);
             statusCode = 200;
+            await this.logRequest(req, authResult.tenantId, mongoResponse, startTime, statusCode);
             res.json(mongoResponse);
 
         } catch (error) {
             console.error('❌ [HTTP Proxy] Error:', error);
             statusCode = error.status || 500;
-            // Восстанавливаем оригинальный path
             Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
+            await this.logRequest(req, tenantId, null, startTime, statusCode);
             res.status(statusCode).json({
                 success: false,
                 error: 'Proxy error',
                 message: error.message
             });
         } finally {
-            // Восстанавливаем оригинальный path в finally
             Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
-            // Записываем метрики в Prometheus
             const duration = Date.now() - startTime;
             if (this.monitoringService) {
                 this.monitoringService.recordRequest(

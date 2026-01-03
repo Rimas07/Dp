@@ -1,17 +1,17 @@
 IMPORTANT
 ✅mongodb atlas or google cloud? both of them will work
-✅Metrics and statistics? yes
-Performance/Load?yes
+✅Metrics and statistics? Done
+Performance/Load?yes// in process
 ✅Jwt payload?
 
 
 
 necessary
-✅ Role model (admin vs. user) in development
-✅ Patient search (by first name, last name, age) To be done
+✅ Role model (admin vs. user) in development// future
+✅ Patient search (by first name, last name, age) To be done// future 
 ✅ Change history (who, when, and what was changed) To be done
 ✅ Data encryption (additional privacy) How to do this?  Is this necessary?
-✅ Caching? no, not required right now
+✅ Caching? no, not required right now// mb in future if system will grow and will be fully in production
 
 DONE
 ............
@@ -19,5 +19,16 @@ DONE
 ✅ Swagger documentation (nice API description) Done
 ✅ Limit notifications (80% warnings)done 
 ✅ Simple frontend (web interface for management) Done but needs to be redesigned
-✅Create a proxy , as it currently works as an application-level proxy
-DONE
+✅Create a proxy , as it currently works as an application-level proxy// done, http proxy
+✅LOG every action make sure to add tenantid to audit// done
+✅Prometheus/grafana dashboard and Metrics //done , but work right now only in local not in cloude
+✅ Migrate to cloud// Done, Render + ✅mongodb
+✅ Multitenant DB// done
+✅ isolation between tenants // done
+✅ audit log every action except metrics!! // done
+✅ race condition// in process atomic operations will be used
+
+
+
+
+

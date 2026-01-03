@@ -4,7 +4,7 @@ import { Document } from 'mongoose';
 @Schema({ versionKey: false, timestamps: true })
 export class Secrets extends Document {
     @Prop({ required: true })
-    jwtSecret: string;// Stores the company's encrypted JWT secret key.
+    jwtSecret: string;
 }
 
 export const SecretsSchema = SchemaFactory.createForClass(Secrets);

@@ -1,7 +1,6 @@
-/* eslint-disable prettier/prettier */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { LimitsContextInterceptor } from './limits/limits.interceptor';
+import { LimitsContextInterceptor } from './limits/limits.interceptor';// limits interceptor 
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
@@ -10,7 +9,7 @@ import { MonitoringInterceptor } from './monitoring/monitoring.interceptor';
 import { ProxyService } from './proxy/proxy.service';
 
 async function bootstrap() {
-  const logger = new Logger('Bootstrap');
+  const logger = new Logger('Bootstrap'); 
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
@@ -41,8 +40,7 @@ async function bootstrap() {
   logger.log(`🚀 HTTP Proxy available via ProxyController`);
   logger.log(`📡 MongoDB Proxy: http://localhost:${configService.get<number>('server.port') || 3000}/proxy/mongo/*path`);
 
-  // Автоматический запуск отдельного HTTP Proxy сервера на порту 3001 для локальной разработки
-  // В облаке (Render.com) используем встроенный прокси через middleware выше
+
   const isLocalDevelopment = !process.env.RENDER || process.env.NODE_ENV === 'development';
   if (isLocalDevelopment) {
     try {

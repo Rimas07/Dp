@@ -6,9 +6,9 @@ export class Tenant extends Document {
     @Prop({ required: true })
     companyName: string;
     @Prop({ required: true })
-    tenantId: string;
-    
+    tenantId: string;    
 }
+
 export const TenantSchema = SchemaFactory.createForClass(Tenant)
 
 /* 

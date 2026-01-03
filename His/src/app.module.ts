@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TenantsModule } from './tenants/tenants.module';
@@ -28,7 +29,10 @@ import { ProxyController } from './proxy/proxy.controller';
       load: [configuration],
     }),
 
-    
+    ThrottlerModule.forRoot([{
+      ttl: 60000, 
+      limit: 50, 
+    }]),
 
     JwtModule.register({
       global: true
@@ -58,7 +62,7 @@ import { ProxyController } from './proxy/proxy.controller';
   providers: [
     AppService,
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
-    
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule implements NestModule {

@@ -16,7 +16,7 @@ export class AuditEvent {
     responseBody?: unknown;
     error?: { name: string; message: string; stack?: string };
 
-    eventType?: 'LIMIT_EXCEEDED' | 'LIMIT_WARNING' | 'LIMIT_UPDATED' | 'USAGE_SPIKE' | 'PATIENT_READ';
+    eventType?: 'LIMIT_EXCEEDED' | 'LIMIT_WARNING' | 'LIMIT_UPDATED' | 'USAGE_SPIKE' | 'PATIENT_READ' | 'PATIENT_CREATE' | 'PATIENT_UPDATE' | 'PATIENT_DELETE';
     limitType?: 'DOCUMENTS' | 'DATA_SIZE' | 'QUERIES';
     limitData?: {
         currentValue: number;
