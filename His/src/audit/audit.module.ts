@@ -22,7 +22,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
                     const rabbitmqUrl = configService.get<string>('rabbitmq.url');
                     const queue = configService.get<string>('rabbitmq.queue') || 'audit-queue';
                     
-                    // Если RabbitMQ URL не указан или это localhost, делаем опциональным подключение
+                    
                     if (!rabbitmqUrl || rabbitmqUrl.includes('localhost')) {
                         console.log('[AuditModule] RabbitMQ URL not configured or is localhost, RabbitMQ will be optional');
                         return {
@@ -33,7 +33,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
                                 queueOptions: {
                                     durable: true
                                 },
-                                // Не падаем, если не можем подключиться
+                               
                                 socketOptions: {
                                     reconnectTimeInSeconds: 5,
                                 }

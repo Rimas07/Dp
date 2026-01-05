@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 
 import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards, UsePipes, ValidationPipe, BadRequestException } from '@nestjs/common';
 import { PatientsService } from './patients.service';
@@ -57,7 +56,7 @@ export class PatientsController {
   getPatients(@Req() req: Request) {
     const tenantId = req['tenantId'] as string;
     const context = req['limitsContext'];
-    // Убрали verbose логи - контекст используется автоматически
+    
     if (!tenantId) {
       throw new Error('Tenant ID not found in request');
     }
@@ -143,6 +142,11 @@ export class PatientsController {
     summary: 'Update patient',
     description: 'Update an existing patient record by ID'
   })
+  
+   
+  
+
+  
   @ApiParam({
     name: 'id',
     description: 'Patient unique identifier',

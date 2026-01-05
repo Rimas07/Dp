@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 export class AuditEvent {
     timestamp!: string;
     level!: 'info' | 'warn' | 'error';

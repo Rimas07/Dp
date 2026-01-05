@@ -7,17 +7,11 @@ import { ProxyService } from './proxy/proxy.service';
 
 async function bootstrap() {
   const logger = new Logger('ProxyBootstrap');
-  
-  // Создаем NestJS приложение для получения всех зависимостей
   const app = await NestFactory.create(AppModule, { logger: false });
-  
   const configService = app.get(ConfigService);
   const proxyService = app.get(ProxyService);
-  
-  // Получаем порт из переменной окружения (Render.com использует PORT)
   const port = process.env.PORT || 3001;
-  
-  // Запускаем ТОЛЬКО прокси-сервер (как на локальной машине)
+
   try {
     proxyService.startProxyServer(parseInt(port.toString()));
     logger.log(`🚀 [Proxy Server] Started on port ${port}`);

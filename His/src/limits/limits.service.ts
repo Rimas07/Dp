@@ -17,17 +17,6 @@ export interface RequestContext {
     method?: string;
 }
 
-/**
- * 🔒 LIMITS SERVICE with ATOMIC OPERATIONS
- * 
- * ✅ ИСПРАВЛЕНО: Race Conditions устранены через atomic MongoDB operations
- * 
- * Основные улучшения:
- * 1. checkDocumentsLimit - атомарная проверка + обновление через findOneAndUpdate
- * 2. checkDataSizeLimit - то же самое для размера данных
- * 3. checkQueriesLimit - атомарное обновление счетчика запросов
- * 4. Валидация отрицательных значений в updateUsage
- */
 @Injectable()
 export class LimitsService {
     private readonly limitsModel;
@@ -42,15 +31,13 @@ export class LimitsService {
         this.usageModel = this.connection.model(DataUsage.name, DataUsageSchema);
     }
 
-    /**
-     * ✅ ИСПРАВЛЕНО: Проверка лимита документов через ATOMIC OPERATION
-     */
+   
     async checkDocumentsLimit(
         tenantId: string,
         incomingDocsCount: number = 1,
         context?: RequestContext
     ): Promise<void> {
-        // Валидация входных данных
+        
         if (incomingDocsCount < 0) {
             throw new ForbiddenException('Document count cannot be negative');
         }
@@ -65,7 +52,6 @@ export class LimitsService {
             return;
         }
 
-        // ✅ ATOMIC OPERATION
         const updatedUsage = await this.usageModel.findOneAndUpdate(
             {
                 tenantId,
@@ -88,7 +74,7 @@ export class LimitsService {
                 ((currentUsage.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
             );
 
-            // 📊 МОНИТОРИНГ: Записываем превышение лимита
+           
             this.monitoring.recordLimitViolation(tenantId, 'DOCUMENTS');
 
             await this.emitLimitViolation(tenantId, 'DOCUMENTS', {
@@ -110,7 +96,7 @@ export class LimitsService {
             });
         }
 
-        // 📊 МОНИТОРИНГ: Записываем текущее использование ресурсов
+        
         this.monitoring.recordResourceUsage(
             tenantId,
             'documents',
@@ -118,7 +104,7 @@ export class LimitsService {
             limit.maxDocuments
         );
 
-        // Проверка на 90% для warning
+        
         const percentage = Math.round((updatedUsage.documentsCount / limit.maxDocuments) * 100);
 
         if (percentage >= 90 && (updatedUsage.documentsCount - incomingDocsCount) < limit.maxDocuments * 0.9) {
@@ -130,9 +116,7 @@ export class LimitsService {
         }
     }
 
-    /**
-     * ✅ ИСПРАВЛЕНО: Проверка лимита размера данных через ATOMIC OPERATION
-     */
+   
     async checkDataSizeLimit(
         tenantId: string,
         incomingDataSizeKB: number,
@@ -152,7 +136,7 @@ export class LimitsService {
             return;
         }
 
-        // ✅ ATOMIC OPERATION
+       
         const updatedUsage = await this.usageModel.findOneAndUpdate(
             {
                 tenantId,
@@ -175,7 +159,6 @@ export class LimitsService {
                 ((currentUsage.dataSizeKB + incomingDataSizeKB) / limit.maxDataSizeKB) * 100
             );
 
-            // 📊 МОНИТОРИНГ: Записываем превышение лимита
             this.monitoring.recordLimitViolation(tenantId, 'DATA_SIZE');
 
             await this.emitLimitViolation(tenantId, 'DATA_SIZE', {
@@ -196,16 +179,12 @@ export class LimitsService {
                 }
             });
         }
-
-        // 📊 МОНИТОРИНГ: Записываем текущее использование
         this.monitoring.recordResourceUsage(
             tenantId,
             'data_size_kb',
             updatedUsage.dataSizeKB,
             limit.maxDataSizeKB
         );
-
-        // Warning на 90%
         const percentage = Math.round((updatedUsage.dataSizeKB / limit.maxDataSizeKB) * 100);
 
         if (percentage >= 90 && (updatedUsage.dataSizeKB - incomingDataSizeKB) < limit.maxDataSizeKB * 0.9) {
@@ -217,9 +196,7 @@ export class LimitsService {
         }
     }
 
-    /**
-     * ✅ ИСПРАВЛЕНО: Проверка лимита запросов через ATOMIC OPERATION
-     */
+   
     async checkQueriesLimit(tenantId: string, context?: RequestContext): Promise<void> {
         const limit = await this.limitsModel.findOne({ tenantId }).exec();
 
@@ -227,7 +204,7 @@ export class LimitsService {
             return;
         }
 
-        // ✅ ATOMIC OPERATION
+        
         const updatedUsage = await this.usageModel.findOneAndUpdate(
             {
                 tenantId,
@@ -250,7 +227,6 @@ export class LimitsService {
                 ((currentUsage.queriesCount + 1) / limit.monthlyQueries) * 100
             );
 
-            // 📊 МОНИТОРИНГ: Записываем превышение лимита
             this.monitoring.recordLimitViolation(tenantId, 'QUERIES');
 
             await this.emitLimitViolation(tenantId, 'QUERIES', {
@@ -272,7 +248,7 @@ export class LimitsService {
             });
         }
 
-        // 📊 МОНИТОРИНГ: Записываем текущее использование
+       
         this.monitoring.recordResourceUsage(
             tenantId,
             'queries',
@@ -280,7 +256,7 @@ export class LimitsService {
             limit.monthlyQueries
         );
 
-        // Warning на 90%
+       
         const percentage = Math.round((updatedUsage.queriesCount / limit.monthlyQueries) * 100);
 
         if (percentage >= 90 && (updatedUsage.queriesCount - 1) < limit.monthlyQueries * 0.9) {
@@ -292,7 +268,7 @@ export class LimitsService {
         }
     }
 
-    // ... остальные методы без изменений ...
+  
 
     private async emitLimitViolation(
         tenantId: string,
@@ -409,11 +385,11 @@ export class LimitsService {
     }
 
     async updateUsage(tenantId: string, docsCount: number, dataSizeKB: number): Promise<void> {
-        // Получаем текущее использование
+        
         const currentUsage = await this.usageModel.findOne({ tenantId }).exec() ||
             await this.usageModel.create({ tenantId, documentsCount: 0, dataSizeKB: 0, queriesCount: 0 });
 
-        // Проверяем, что итоговые значения не станут отрицательными
+        
         const newDocsCount = currentUsage.documentsCount + docsCount;
         const newDataSizeKB = currentUsage.dataSizeKB + dataSizeKB;
 

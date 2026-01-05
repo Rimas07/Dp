@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import Cryptr from "cryptr";
 
 export function decrypt(encryptedData: string, encryptionKey: string): string {

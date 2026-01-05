@@ -113,7 +113,7 @@ export class ProxyService {
 
     public async processRequest(req: any) {
         try {
-            // Убрали verbose логи - запрос обрабатывается автоматически
+           
             const authResult = await this.validateToken(
                 req.headers.authorization?.replace('Bearer ', '') || ''
             );

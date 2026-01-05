@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable prettier/prettier */
 import { Controller, Get, Query } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { InjectModel } from '@nestjs/mongoose';
@@ -47,9 +44,9 @@ export class AuditController {
                     const PatientModel = tenantDb.model(Patient.name, PatientSchema);
                     const patientCount = await PatientModel.countDocuments();
                     totalPatients += patientCount;
-                    // Убрали verbose логи - статистика собирается автоматически
+                
                 } catch (error) {
-                    // Логируем только ошибки (критично)
+                
                     console.error(`❌ Error counting patients for tenant ${tenant.tenantId}:`, error.message);
                 }
             }
@@ -74,7 +71,6 @@ export class AuditController {
                 }
             };
 
-            // Убрали verbose логи - статистика возвращается автоматически
             return result;
         } catch (error) {
             return {

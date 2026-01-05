@@ -48,24 +48,23 @@ export class HttpProxyServer {
     }
 
     private setupProxy() {
-        // 1️⃣ Глобальный rate limiter - защита от DDoS (для Express сервера)
-        // Примечание: Для NestJS контроллеров используется ThrottlerGuard
+        
         const globalLimiter = rateLimit({
             windowMs: 1 * 60 * 1000, // 1 минута
-            max: 5, // максимум 5 запросов с одного IP за минуту
+            max: 10, 
             message: {
                 success: false,
                 error: 'Too many requests from this IP',
                 message: 'Please try again later'
             },
-            standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-            legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+            standardHeaders: true, 
+            legacyHeaders: false, 
         });
 
-        // Применяем глобальный лимитер ко всем /mongo/* запросам
+      
         this.app.use('/mongo', globalLimiter);
 
-        // Обрабатываем все HTTP методы для путей /mongo/*
+     
         this.app.use('/mongo', async (req, res) => {
             const startTime = Date.now();
             const method = req.method;
@@ -107,7 +106,7 @@ export class HttpProxyServer {
                     message: error.message
                 });
             } finally {
-                // Записываем метрики в Prometheus
+
                 const duration = Date.now() - startTime;
                 if (this.monitoringService) {
                     this.monitoringService.recordRequest(
@@ -120,13 +119,9 @@ export class HttpProxyServer {
                 }
             }
         });
-
-        // Health check
         this.app.get('/proxy/health', (req, res) => {
             res.json({ status: 'HTTP Proxy Server is running!' });
         });
-
-        // Rate limiting statistics endpoint
         this.app.get('/proxy/rate-limit-stats', (req, res) => {
             res.json({
                 success: true,
@@ -136,7 +131,6 @@ export class HttpProxyServer {
             });
         });
 
-        // Prometheus metrics endpoint
         this.app.get('/metrics', async (req, res) => {
             try {
                 res.set('Content-Type', register.contentType);
@@ -154,7 +148,7 @@ export class HttpProxyServer {
                 return { success: false, error: 'Request headers are missing' };
             }
 
-            // Вариант 1: Проверяем X-Tenant-ID заголовок (для тестирования)
+           
             const headerTenantId = (req.headers['x-tenant-id'] ||
                 req.headers['X-TENANT-ID'] ||
                 req.headers['X-Tenant-ID']) as string;
@@ -174,7 +168,7 @@ export class HttpProxyServer {
                 }
             }
 
-            // Вариант 2: Используем JWT токен через AuthService
+          
             const authHeader = req.headers.authorization;
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
                 return { success: false, error: 'No valid token provided. Use Authorization: Bearer <token> or X-Tenant-ID header' };
@@ -182,7 +176,7 @@ export class HttpProxyServer {
 
             const token = authHeader.substring(7);
 
-            // Используем существующий метод AuthService вместо дублирования логики
+            
             const validationResult = await this.authService.validateToken(token);
 
             if (validationResult.success) {
@@ -215,13 +209,20 @@ export class HttpProxyServer {
                 userAgent: req.headers['user-agent']
             };
 
-            // LimitsService уже выполняет все проверки, логирование и warnings
+            // READ операции не должны проверять лимиты размера данных
+            const isReadOperation = ['find', 'findOne', 'findById', 'count', 'countDocuments'].includes(operation.type);
+
+            // Проверка лимита документов (только для CREATE операций)
             if (operation.documents > 0) {
                 await this.limitsService.checkDocumentsLimit(tenantId, operation.documents, context);
             }
-            if (dataSize > 0) {
+            
+            // Проверка лимита размера данных (только для WRITE операций)
+            if (!isReadOperation && dataSize > 0) {
                 await this.limitsService.checkDataSizeLimit(tenantId, dataSize, context);
             }
+            
+            // Проверка лимита запросов (для всех операций)
             await this.limitsService.checkQueriesLimit(tenantId, context);
 
             return { success: true };
@@ -236,7 +237,7 @@ export class HttpProxyServer {
     }
 
     private modifyRequest(req: express.Request, tenantId: string): any {
-        // Для GET запросов используем пустой body с дефолтной операцией find
+        
         const modifiedBody = req.method === 'GET' ? { operation: 'find' } : { ...req.body };
 
         if (modifiedBody.filter) {
@@ -275,7 +276,7 @@ export class HttpProxyServer {
             console.log(`🔍 [Proxy] Executing operation: ${operation}`);
 
             switch (operation) {
-                // READ - Получить всех пациентов
+            
                 case 'find':
                 case 'findMany': {
                     const filter = { ...body.filter };
@@ -290,13 +291,13 @@ export class HttpProxyServer {
                     break;
                 }
 
-                // READ - Получить одного пациента по ID
+                
                 case 'findOne':
                 case 'findById': {
                     const filter = { ...body.filter };
                     delete filter.tenantId;
 
-                    // Если передан ID напрямую
+                    
                     if (body.id) {
                         filter._id = new (await import('mongodb')).ObjectId(body.id);
                     }
@@ -305,7 +306,7 @@ export class HttpProxyServer {
                     break;
                 }
 
-                // CREATE - Создать одного пациента
+                
                 case 'insertOne':
                 case 'create': {
                     const document = { ...body.document };
@@ -320,7 +321,7 @@ export class HttpProxyServer {
                     break;
                 }
 
-                // CREATE - Создать нескольких пациентов
+                
                 case 'insertMany':
                 case 'createMany': {
                     const documents = body.documents.map((doc: any) => {
@@ -338,13 +339,13 @@ export class HttpProxyServer {
                     break;
                 }
 
-                // UPDATE - Обновить одного пациента
+                
                 case 'updateOne':
                 case 'update': {
                     const filter = { ...body.filter };
                     delete filter.tenantId;
 
-                    // Если передан ID напрямую
+                    
                     if (body.id) {
                         filter._id = new (await import('mongodb')).ObjectId(body.id);
                     }
@@ -352,7 +353,7 @@ export class HttpProxyServer {
                     const update = body.update || { $set: body.data };
                     const updateResult = await collection.updateOne(filter, update);
 
-                    // Получаем обновленный документ
+                    
                     const updatedDoc = await collection.findOne(filter);
 
                     result = {
@@ -364,7 +365,7 @@ export class HttpProxyServer {
                     break;
                 }
 
-                // UPDATE - Обновить несколько пациентов
+                
                 case 'updateMany': {
                     const filter = { ...body.filter };
                     delete filter.tenantId;
@@ -380,18 +381,18 @@ export class HttpProxyServer {
                     break;
                 }
 
-                // DELETE - Удалить одного пациента
+               
                 case 'deleteOne':
                 case 'delete': {
                     const filter = { ...body.filter };
                     delete filter.tenantId;
 
-                    // Если передан ID напрямую
+                   
                     if (body.id) {
                         filter._id = new (await import('mongodb')).ObjectId(body.id);
                     }
 
-                    // Сначала получаем документ для возврата
+                    
                     const docToDelete = await collection.findOne(filter);
 
                     const deleteResult = await collection.deleteOne(filter);
@@ -404,7 +405,7 @@ export class HttpProxyServer {
                     break;
                 }
 
-                // DELETE - Удалить несколько пациентов
+                
                 case 'deleteMany': {
                     const filter = { ...body.filter };
                     delete filter.tenantId;
@@ -418,7 +419,7 @@ export class HttpProxyServer {
                     break;
                 }
 
-                // COUNT - Подсчитать документы
+               
                 case 'count':
                 case 'countDocuments': {
                     const filter = { ...body.filter };
@@ -571,9 +572,7 @@ export class HttpProxyServer {
         return this.app;
     }
 
-    /**
-     * Публичный метод для обработки запросов напрямую (для использования в NestJS контроллерах)
-     */
+
     public async handleRequest(req: express.Request, res: express.Response) {
         const startTime = Date.now();
         const method = req.method;

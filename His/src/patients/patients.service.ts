@@ -1,5 +1,3 @@
-/* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Inject, Injectable, UsePipes, ValidationPipe, NotFoundException, InternalServerErrorException, ConflictException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { LimitsService } from 'src/limits/limits.service';

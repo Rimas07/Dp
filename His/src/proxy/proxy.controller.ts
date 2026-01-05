@@ -41,7 +41,7 @@ export class ProxyController {
         try {
             console.log('🔄 [ProxyController] Intercepted request to MongoDB:', req.method, req.path);
 
-            // Use handleProxyRequest instead of getProxyApp to avoid stream issues
+            
             await this.proxyService.handleProxyRequest(req, res);
 
         } catch (error) {
@@ -63,7 +63,7 @@ export class ProxyController {
         try {
             console.log('🔄 [ProxyController] Intercepted GET request to MongoDB:', req.method, req.path);
 
-            // Use handleProxyRequest instead of getProxyApp to avoid stream issues
+           
             await this.proxyService.handleProxyRequest(req, res);
 
         } catch (error) {
@@ -76,13 +76,6 @@ export class ProxyController {
         }
     }
 
-    /**
-     * Тестовый endpoint для проверки Proxy
-     * 
-     * Требует:
-     * - X-Tenant-ID header
-     * - Authorization: Bearer <token>
-     */
     @Post('test')
     @ApiOperation({
         summary: 'Test Proxy validation',

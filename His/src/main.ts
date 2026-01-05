@@ -16,7 +16,7 @@ async function bootstrap() {
   const monitoringService = app.get(MonitoringService);
   app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
   app.enableCors({
-    origin: true, // Разрешаем все источники для облачного деплоя
+    origin: true, 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID', 'X-TENANT-ID'],
     credentials: true
@@ -36,7 +36,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(new MonitoringInterceptor(monitoringService));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   
-  // HTTP Proxy доступен через ProxyController на /proxy/mongo/*path
+  
   logger.log(`🚀 HTTP Proxy available via ProxyController`);
   logger.log(`📡 MongoDB Proxy: http://localhost:${configService.get<number>('server.port') || 3000}/proxy/mongo/*path`);
 

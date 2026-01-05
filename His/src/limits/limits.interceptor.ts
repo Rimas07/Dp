@@ -1,4 +1,4 @@
-/* eslint-disable prettier/prettier */
+
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Request } from 'express';
 import { Observable } from 'rxjs';
@@ -18,8 +18,6 @@ export class LimitsContextInterceptor implements NestInterceptor {
             endpoint: req.originalUrl || req.url,
             method: req.method,
         };
-
-        // Убрали verbose логи - контекст создается автоматически
         (req as any).limitsContext = limitsContext;
 
         return next.handle();

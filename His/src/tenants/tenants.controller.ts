@@ -33,7 +33,7 @@ export class TenantController {
 
 }
 /*
-Everything that starts with an API is Swagger Documentation
+
 constructor(private readonly tenantService: TenantsService) { }
 create a constructor, make it private, import tenantService, but make it read-only.
 

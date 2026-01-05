@@ -1,8 +1,3 @@
-/* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/require-await */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable prettier/prettier */
-
 import { InternalServerErrorException, Scope } from "@nestjs/common";
 import { REQUEST } from "@nestjs/core";
 import { getConnectionToken } from "@nestjs/mongoose";
@@ -25,27 +20,6 @@ export const tenantConnectionProvider = {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// /* eslint-disable prettier/prettier */
-// /* eslint-disable @typescript-eslint/require-await */
-// /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-// /* eslint-disable prettier/prettier */
 
 // import { InternalServerErrorException } from "@nestjs/common";
 // import { REQUEST } from "@nestjs/core";

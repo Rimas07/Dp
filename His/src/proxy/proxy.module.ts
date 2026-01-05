@@ -19,7 +19,7 @@ import { MonitoringModule } from '../monitoring/monitoring.module';
         AuditModule,
         UsersModule,
         MonitoringModule,
-        JwtModule // JwtModule уже глобальный, но явно импортируем для ясности
+        JwtModule 
     ],
     controllers: [ProxyController],
     providers: [ProxyService, 
