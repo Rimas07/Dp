@@ -52,6 +52,37 @@ export class LimitsService {
             return;
         }
 
+        // Убеждаемся, что usage существует (создаем если нет)
+        let currentUsage = await this.usageModel.findOne({ tenantId }).exec();
+        if (!currentUsage) {
+            currentUsage = await this.usageModel.create({ tenantId });
+        }
+
+        // Проверяем лимит перед атомарной операцией
+        if (currentUsage.documentsCount + incomingDocsCount > limit.maxDocuments) {
+            const percentage = Math.round(
+                ((currentUsage.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
+            );
+            this.monitoring.recordLimitViolation(tenantId, 'DOCUMENTS');
+            await this.emitLimitViolation(tenantId, 'DOCUMENTS', {
+                currentValue: currentUsage.documentsCount,
+                limitValue: limit.maxDocuments,
+                attemptedValue: incomingDocsCount,
+                percentage
+            }, context);
+            throw new ForbiddenException({
+                message: `Document limit exceeded. Current: ${currentUsage.documentsCount}, Limit: ${limit.maxDocuments}, Attempted to add: ${incomingDocsCount}`,
+                error: 'DOCUMENT_LIMIT_EXCEEDED',
+                details: {
+                    current: currentUsage.documentsCount,
+                    limit: limit.maxDocuments,
+                    attempted: incomingDocsCount,
+                    percentage
+                }
+            });
+        }
+
+        // Атомарное обновление с проверкой лимита (защита от race condition)
         const updatedUsage = await this.usageModel.findOneAndUpdate(
             {
                 tenantId,
@@ -66,34 +97,80 @@ export class LimitsService {
             }
         ).exec();
 
+        // Если атомарная операция не прошла (race condition - другой запрос изменил usage)
         if (!updatedUsage) {
-            const currentUsage = await this.usageModel.findOne({ tenantId }).exec() ||
-                await this.usageModel.create({ tenantId });
-
-            const percentage = Math.round(
-                ((currentUsage.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
-            );
-
-           
-            this.monitoring.recordLimitViolation(tenantId, 'DOCUMENTS');
-
-            await this.emitLimitViolation(tenantId, 'DOCUMENTS', {
-                currentValue: currentUsage.documentsCount,
-                limitValue: limit.maxDocuments,
-                attemptedValue: incomingDocsCount,
-                percentage
-            }, context);
-
-            throw new ForbiddenException({
-                message: `Document limit exceeded. Current: ${currentUsage.documentsCount}, Limit: ${limit.maxDocuments}, Attempted to add: ${incomingDocsCount}`,
-                error: 'DOCUMENT_LIMIT_EXCEEDED',
-                details: {
-                    current: currentUsage.documentsCount,
-                    limit: limit.maxDocuments,
-                    attempted: incomingDocsCount,
+            const finalUsage = await this.usageModel.findOne({ tenantId }).exec();
+            // Проверяем еще раз
+            if (finalUsage.documentsCount + incomingDocsCount > limit.maxDocuments) {
+                const percentage = Math.round(
+                    ((finalUsage.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
+                );
+                this.monitoring.recordLimitViolation(tenantId, 'DOCUMENTS');
+                await this.emitLimitViolation(tenantId, 'DOCUMENTS', {
+                    currentValue: finalUsage.documentsCount,
+                    limitValue: limit.maxDocuments,
+                    attemptedValue: incomingDocsCount,
                     percentage
+                }, context);
+                throw new ForbiddenException({
+                    message: `Document limit exceeded. Current: ${finalUsage.documentsCount}, Limit: ${limit.maxDocuments}, Attempted to add: ${incomingDocsCount}`,
+                    error: 'DOCUMENT_LIMIT_EXCEEDED',
+                    details: {
+                        current: finalUsage.documentsCount,
+                        limit: limit.maxDocuments,
+                        attempted: incomingDocsCount,
+                        percentage
+                    }
+                });
+            }
+            // Если лимит все еще не превышен, пробуем еще раз атомарно
+            const retryUpdate = await this.usageModel.findOneAndUpdate(
+                {
+                    tenantId,
+                    documentsCount: { $lte: limit.maxDocuments - incomingDocsCount }
+                },
+                {
+                    $inc: { documentsCount: incomingDocsCount }
+                },
+                {
+                    new: true,
+                    upsert: false
                 }
-            });
+            ).exec();
+            
+            if (!retryUpdate) {
+                // Если все еще не получилось, значит лимит превышен
+                const finalCheck = await this.usageModel.findOne({ tenantId }).exec();
+                const percentage = Math.round(
+                    ((finalCheck.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
+                );
+                this.monitoring.recordLimitViolation(tenantId, 'DOCUMENTS');
+                await this.emitLimitViolation(tenantId, 'DOCUMENTS', {
+                    currentValue: finalCheck.documentsCount,
+                    limitValue: limit.maxDocuments,
+                    attemptedValue: incomingDocsCount,
+                    percentage
+                }, context);
+                throw new ForbiddenException({
+                    message: `Document limit exceeded. Current: ${finalCheck.documentsCount}, Limit: ${limit.maxDocuments}, Attempted to add: ${incomingDocsCount}`,
+                    error: 'DOCUMENT_LIMIT_EXCEEDED',
+                    details: {
+                        current: finalCheck.documentsCount,
+                        limit: limit.maxDocuments,
+                        attempted: incomingDocsCount,
+                        percentage
+                    }
+                });
+            }
+            
+            // Успешно обновлено после retry
+            this.monitoring.recordResourceUsage(
+                tenantId,
+                'documents',
+                retryUpdate.documentsCount,
+                limit.maxDocuments
+            );
+            return;
         }
 
         

@@ -20,8 +20,6 @@ export class AuditInterceptor implements NestInterceptor {
 
         const tenantId = (req as any).tenantId || 'unknown';
         const userId = (req as any).user?.id;
-
-        // Служебные эндпоинты, которые не нужно логировать в audit
         const ignoredPaths = ['/metrics', '/proxy/metrics', '/proxy/health', '/proxy/rate-limit-stats', '/health'];
         const requestPath = req.originalUrl || req.url || '';
         const shouldSkipAudit = ignoredPaths.some(path => requestPath.includes(path));
@@ -30,7 +28,7 @@ export class AuditInterceptor implements NestInterceptor {
             tap((data) => {
                 const duration = Date.now() - start;
 
-                // Записываем в Prometheus (всегда записываем метрики)
+        
                 this.monitoring.recordRequest(
                     tenantId,
                     req.method,
@@ -38,13 +36,11 @@ export class AuditInterceptor implements NestInterceptor {
                     res.statusCode,
                     duration
                 );
-
-                // Пропускаем audit логирование для служебных эндпоинтов
                 if (shouldSkipAudit) {
                     return;
                 }
 
-                // Оригинальное audit логирование
+        
                 const event: AuditEvent = {
                     timestamp: new Date().toISOString(),
                     level: 'info',
@@ -65,7 +61,7 @@ export class AuditInterceptor implements NestInterceptor {
             catchError((err) => {
                 const duration = Date.now() - start;
 
-                // Записываем ошибку в Prometheus (всегда записываем метрики)
+                
                 this.monitoring.recordRequest(
                     tenantId,
                     req.method,
@@ -74,9 +70,9 @@ export class AuditInterceptor implements NestInterceptor {
                     duration
                 );
 
-                // Пропускаем audit логирование для служебных эндпоинтов
+                
                 if (!shouldSkipAudit) {
-                    // Оригинальное audit логирование ошибки
+                    
                     const event: AuditEvent = {
                         timestamp: new Date().toISOString(),
                         level: 'error',

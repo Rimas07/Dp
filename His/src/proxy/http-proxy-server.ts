@@ -209,20 +209,18 @@ export class HttpProxyServer {
                 userAgent: req.headers['user-agent']
             };
 
-            // READ операции не должны проверять лимиты размера данных
             const isReadOperation = ['find', 'findOne', 'findById', 'count', 'countDocuments'].includes(operation.type);
 
-            // Проверка лимита документов (только для CREATE операций)
+   
             if (operation.documents > 0) {
                 await this.limitsService.checkDocumentsLimit(tenantId, operation.documents, context);
             }
             
-            // Проверка лимита размера данных (только для WRITE операций)
+         
             if (!isReadOperation && dataSize > 0) {
                 await this.limitsService.checkDataSizeLimit(tenantId, dataSize, context);
             }
-            
-            // Проверка лимита запросов (для всех операций)
+   
             await this.limitsService.checkQueriesLimit(tenantId, context);
 
             return { success: true };
@@ -454,7 +452,7 @@ export class HttpProxyServer {
 
     private async logRequest(req: express.Request, tenantId: string, response: any, startTime: number, statusCode: number) {
         try {
-            // Игнорируем запросы к служебным эндпоинтам
+           
             const ignoredPaths = ['/metrics', '/proxy/metrics', '/proxy/health', '/proxy/rate-limit-stats'];
             const requestPath = req.path || req.url;
 
