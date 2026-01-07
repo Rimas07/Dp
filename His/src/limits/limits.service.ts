@@ -182,7 +182,18 @@ export class LimitsService {
         
         const percentage = Math.round((updatedUsage.documentsCount / limit.maxDocuments) * 100);
 
-        if (percentage >= 80 && (updatedUsage.documentsCount - incomingDocsCount) < limit.maxDocuments * 0.8) {
+        console.log('🔍 [Limits] Checking warning threshold:', {
+            percentage,
+            currentDocs: updatedUsage.documentsCount,
+            previousDocs: updatedUsage.documentsCount - incomingDocsCount,
+            maxDocs: limit.maxDocuments,
+            threshold80: limit.maxDocuments * 0.8,
+            condition1: percentage >= 80,
+            condition2: (updatedUsage.documentsCount - incomingDocsCount) <= limit.maxDocuments * 0.8
+        });
+
+        if (percentage >= 80 && (updatedUsage.documentsCount - incomingDocsCount) <= limit.maxDocuments * 0.8) {
+            console.log('⚠️ [Limits] EMITTING WARNING - 80% threshold reached!');
             await this.emitLimitWarning(tenantId, 'DOCUMENTS', {
                 currentValue: updatedUsage.documentsCount,
                 limitValue: limit.maxDocuments,
@@ -262,7 +273,7 @@ export class LimitsService {
         );
         const percentage = Math.round((updatedUsage.dataSizeKB / limit.maxDataSizeKB) * 100);
 
-        if (percentage >= 80 && (updatedUsage.dataSizeKB - incomingDataSizeKB) < limit.maxDataSizeKB * 0.8) {
+        if (percentage >= 80 && (updatedUsage.dataSizeKB - incomingDataSizeKB) <= limit.maxDataSizeKB * 0.8) {
             await this.emitLimitWarning(tenantId, 'DATA_SIZE', {
                 currentValue: updatedUsage.dataSizeKB,
                 limitValue: limit.maxDataSizeKB,
@@ -334,7 +345,7 @@ export class LimitsService {
        
         const percentage = Math.round((updatedUsage.queriesCount / limit.monthlyQueries) * 100);
 
-        if (percentage >= 80 && (updatedUsage.queriesCount - 1) < limit.monthlyQueries * 0.8) {
+        if (percentage >= 80 && (updatedUsage.queriesCount - 1) <= limit.monthlyQueries * 0.8) {
             await this.emitLimitWarning(tenantId, 'QUERIES', {
                 currentValue: updatedUsage.queriesCount,
                 limitValue: limit.monthlyQueries,
@@ -388,6 +399,12 @@ export class LimitsService {
         context?: RequestContext
     ): Promise<void> {
         try {
+            console.log('📢 [Limits] Emitting limit warning:', {
+                tenantId,
+                limitType,
+                limitData
+            });
+
             const event: LimitWarningEvent = {
                 timestamp: new Date().toISOString(),
                 level: 'warn',
@@ -411,7 +428,8 @@ export class LimitsService {
                 }
             };
 
-            this.auditService.emit(event);
+            await this.auditService.emit(event);
+            console.log('✅ [Limits] Warning event emitted successfully');
         } catch (error) {
             console.error('Failed to emit limit warning audit event:', error);
         }

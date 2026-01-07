@@ -41,3 +41,4 @@ rabbitmq-data/
 # Temporary files
 *.tmp
 *.temp
+nul

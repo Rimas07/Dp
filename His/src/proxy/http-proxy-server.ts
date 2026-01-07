@@ -85,8 +85,8 @@ export class HttpProxyServer {
 
                 const limitsResult = await this.checkDataLimits(req, authResult.tenantId);
                 if (!limitsResult.success) {
-                    statusCode = 429;
-                    return res.status(429).json(limitsResult);
+                    statusCode = 403;
+                    return res.status(403).json(limitsResult);
                 }
                 const modifiedBody = this.modifyRequest(req, authResult.tenantId);
 
@@ -228,8 +228,9 @@ export class HttpProxyServer {
             console.log('❌ [Limits] LIMIT EXCEEDED:', error.message);
             return {
                 success: false,
-                error: 'Data limits exceeded',
-                details: error.message
+                error: 'Data limit exceeded',
+              
+                
             };
         }
     }
@@ -602,9 +603,9 @@ export class HttpProxyServer {
 
             const limitsResult = await this.checkDataLimits(req, authResult.tenantId);
             if (!limitsResult.success) {
-                statusCode = 429;
+                statusCode = 403;
                 Object.defineProperty(req, 'path', { value: originalPath, writable: true, configurable: true });
-                return res.status(429).json(limitsResult);
+                return res.status(403).json(limitsResult);
             }
             const modifiedBody = this.modifyRequest(req, authResult.tenantId);
 
