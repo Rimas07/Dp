@@ -52,35 +52,25 @@ export class LimitsService {
             return;
         }
 
-   
+
         let currentUsage = await this.usageModel.findOne({ tenantId }).exec();
         if (!currentUsage) {
             currentUsage = await this.usageModel.create({ tenantId });
         }
 
+        // Force refresh from database to avoid stale cache
+        await currentUsage.reload?.() || (currentUsage = await this.usageModel.findOne({ tenantId }).exec());
 
-        if (currentUsage.documentsCount + incomingDocsCount > limit.maxDocuments) {
-            const percentage = Math.round(
-                ((currentUsage.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
-            );
-            this.monitoring.recordLimitViolation(tenantId, 'DOCUMENTS');
-            await this.emitLimitViolation(tenantId, 'DOCUMENTS', {
-                currentValue: currentUsage.documentsCount,
-                limitValue: limit.maxDocuments,
-                attemptedValue: incomingDocsCount,
-                percentage
-            }, context);
-            throw new ForbiddenException({
-                message: `Document limit exceeded. Current: ${currentUsage.documentsCount}, Limit: ${limit.maxDocuments}, Attempted to add: ${incomingDocsCount}`,
-                error: 'DOCUMENT_LIMIT_EXCEEDED',
-                details: {
-                    current: currentUsage.documentsCount,
-                    limit: limit.maxDocuments,
-                    attempted: incomingDocsCount,
-                    percentage
-                }
-            });
-        }
+        console.log('📊 [Limits] Current state before check:', {
+            tenantId,
+            currentDocs: currentUsage.documentsCount,
+            incomingDocs: incomingDocsCount,
+            maxDocs: limit.maxDocuments,
+            willBeAfter: currentUsage.documentsCount + incomingDocsCount,
+            willExceed: currentUsage.documentsCount + incomingDocsCount > limit.maxDocuments
+        });
+
+        // NOTE: We skip pre-check and rely ONLY on atomic operation to avoid race conditions
 
         console.log('🔍 [Limits] Attempting atomic update:', {
             tenantId,

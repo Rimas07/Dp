@@ -517,6 +517,11 @@ export class HttpProxyServer {
             case 'insertMany':
             case 'createMany':
                 documents = req.body.documents?.length || 0;
+                console.log('📦 [detectOperation] insertMany detected:', {
+                    operation,
+                    documentsArray: req.body.documents,
+                    documentsCount: documents
+                });
                 break;
             case 'updateOne':
             case 'update':
