@@ -193,7 +193,7 @@ export class LimitsService {
         });
 
         if (percentage >= 80 && (updatedUsage.documentsCount - incomingDocsCount) <= limit.maxDocuments * 0.8) {
-            console.log('⚠️ [Limits] EMITTING WARNING - 80% threshold reached!');
+            console.log('⚠️ Attention  you are approaching the limit - 80% threshold reached!');
             await this.emitLimitWarning(tenantId, 'DOCUMENTS', {
                 currentValue: updatedUsage.documentsCount,
                 limitValue: limit.maxDocuments,
