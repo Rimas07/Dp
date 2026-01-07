@@ -82,10 +82,19 @@ export class LimitsService {
             });
         }
 
+        console.log('🔍 [Limits] Attempting atomic update:', {
+            tenantId,
+            currentDocs: currentUsage.documentsCount,
+            incomingDocs: incomingDocsCount,
+            maxDocs: limit.maxDocuments,
+            willBeAfter: currentUsage.documentsCount + incomingDocsCount,
+            condition: `documentsCount < ${limit.maxDocuments - incomingDocsCount + 1}`
+        });
+
         const updatedUsage = await this.usageModel.findOneAndUpdate(
             {
                 tenantId,
-                documentsCount: { $lte: limit.maxDocuments - incomingDocsCount }
+                documentsCount: { $lt: limit.maxDocuments - incomingDocsCount + 1 }
             },
             {
                 $inc: { documentsCount: incomingDocsCount }
@@ -95,6 +104,15 @@ export class LimitsService {
                 upsert: false
             }
         ).exec();
+
+        if (updatedUsage) {
+            console.log('✅ [Limits] Atomic update successful:', {
+                newCount: updatedUsage.documentsCount,
+                limit: limit.maxDocuments
+            });
+        } else {
+            console.log('❌ [Limits] Atomic update failed - limit would be exceeded');
+        }
 
         if (!updatedUsage) {
             const finalUsage = await this.usageModel.findOne({ tenantId }).exec();
@@ -125,7 +143,7 @@ export class LimitsService {
             const retryUpdate = await this.usageModel.findOneAndUpdate(
                 {
                     tenantId,
-                    documentsCount: { $lte: limit.maxDocuments - incomingDocsCount }
+                    documentsCount: { $lt: limit.maxDocuments - incomingDocsCount + 1 }
                 },
                 {
                     $inc: { documentsCount: incomingDocsCount }
@@ -226,7 +244,7 @@ export class LimitsService {
         const updatedUsage = await this.usageModel.findOneAndUpdate(
             {
                 tenantId,
-                dataSizeKB: { $lte: limit.maxDataSizeKB - incomingDataSizeKB }
+                dataSizeKB: { $lt: limit.maxDataSizeKB - incomingDataSizeKB + 1 }
             },
             {
                 $inc: { dataSizeKB: incomingDataSizeKB }
