@@ -52,13 +52,13 @@ export class LimitsService {
             return;
         }
 
-        // Убеждаемся, что usage существует (создаем если нет)
+   
         let currentUsage = await this.usageModel.findOne({ tenantId }).exec();
         if (!currentUsage) {
             currentUsage = await this.usageModel.create({ tenantId });
         }
 
-        // Проверяем лимит перед атомарной операцией
+
         if (currentUsage.documentsCount + incomingDocsCount > limit.maxDocuments) {
             const percentage = Math.round(
                 ((currentUsage.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
@@ -82,7 +82,6 @@ export class LimitsService {
             });
         }
 
-        // Атомарное обновление с проверкой лимита (защита от race condition)
         const updatedUsage = await this.usageModel.findOneAndUpdate(
             {
                 tenantId,
@@ -97,10 +96,9 @@ export class LimitsService {
             }
         ).exec();
 
-        // Если атомарная операция не прошла (race condition - другой запрос изменил usage)
         if (!updatedUsage) {
             const finalUsage = await this.usageModel.findOne({ tenantId }).exec();
-            // Проверяем еще раз
+          
             if (finalUsage.documentsCount + incomingDocsCount > limit.maxDocuments) {
                 const percentage = Math.round(
                     ((finalUsage.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
@@ -184,7 +182,7 @@ export class LimitsService {
         
         const percentage = Math.round((updatedUsage.documentsCount / limit.maxDocuments) * 100);
 
-        if (percentage >= 90 && (updatedUsage.documentsCount - incomingDocsCount) < limit.maxDocuments * 0.9) {
+        if (percentage >= 80 && (updatedUsage.documentsCount - incomingDocsCount) < limit.maxDocuments * 0.8) {
             await this.emitLimitWarning(tenantId, 'DOCUMENTS', {
                 currentValue: updatedUsage.documentsCount,
                 limitValue: limit.maxDocuments,
@@ -264,7 +262,7 @@ export class LimitsService {
         );
         const percentage = Math.round((updatedUsage.dataSizeKB / limit.maxDataSizeKB) * 100);
 
-        if (percentage >= 90 && (updatedUsage.dataSizeKB - incomingDataSizeKB) < limit.maxDataSizeKB * 0.9) {
+        if (percentage >= 80 && (updatedUsage.dataSizeKB - incomingDataSizeKB) < limit.maxDataSizeKB * 0.8) {
             await this.emitLimitWarning(tenantId, 'DATA_SIZE', {
                 currentValue: updatedUsage.dataSizeKB,
                 limitValue: limit.maxDataSizeKB,
@@ -336,7 +334,7 @@ export class LimitsService {
        
         const percentage = Math.round((updatedUsage.queriesCount / limit.monthlyQueries) * 100);
 
-        if (percentage >= 90 && (updatedUsage.queriesCount - 1) < limit.monthlyQueries * 0.9) {
+        if (percentage >= 80 && (updatedUsage.queriesCount - 1) < limit.monthlyQueries * 0.8) {
             await this.emitLimitWarning(tenantId, 'QUERIES', {
                 currentValue: updatedUsage.queriesCount,
                 limitValue: limit.monthlyQueries,
@@ -402,7 +400,7 @@ export class LimitsService {
                 durationMs: 0,
                 ip: context?.ipAddress,
                 userAgent: context?.userAgent,
-                message: `${limitType} limit warning (90% reached) for tenant ${tenantId}`,
+                message: `${limitType} limit warning (80% reached) for tenant ${tenantId}`,
                 eventType: 'LIMIT_WARNING',
                 limitType,
                 limitData,
