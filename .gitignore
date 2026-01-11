@@ -42,3 +42,8 @@ rabbitmq-data/
 *.tmp
 *.temp
 nul
+His/benchmarks/compare-proxy.ts
+His/benchmarks/demo.ts
+His/benchmarks/simple-proxy-test.ts
+His/benchmarks/investigate-performance.ts
+His/benchmarks/visualize-results.ts

@@ -24,4 +24,9 @@ export class LimitsController {
 
         return this.limitsService.getUsageForTenant(tenantId);
     }
+
+    @Put('usage/:tenantId')
+    async setUsage(@Param('tenantId') tenantId: string, @Body() usage: any) {
+        return this.limitsService.setUsageForTenant(tenantId, usage);
+    }
 }

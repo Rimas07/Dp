@@ -63,7 +63,7 @@ export class TenantAuthenticationGuard implements CanActivate {
         tenantId: string,
     ): Promise<string> {
         try {
-            //Get secret from tenant-specific database and decrypt it before verifying
+           
             const secret = await this.authService.fetchAccessTokenSecretSigningKey(
                 tenantId,
             );

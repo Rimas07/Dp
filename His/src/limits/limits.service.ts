@@ -6,7 +6,7 @@ import { DataLimit, DataLimitSchema } from './limits.schema';
 import { DataUsage, DataUsageSchema } from './usage.schema';
 import { AuditService } from '../audit/audit.service';
 import { AuditEvent, LimitViolationEvent, LimitWarningEvent } from '../audit/audit-event.dto';
-import { MonitoringService } from '../monitoring/monitoring.service'; // ← ДОБАВЬ ЭТУ СТРОКУ
+import { MonitoringService } from '../monitoring/monitoring.service';
 
 export interface RequestContext {
     requestId?: string;
@@ -25,7 +25,7 @@ export class LimitsService {
     constructor(
         @InjectConnection() private connection: Connection,
         private readonly auditService: AuditService,
-        private readonly monitoring: MonitoringService, // ← ДОБАВЬ ЭТУ СТРОКУ
+        private readonly monitoring: MonitoringService, 
     ) {
         this.limitsModel = this.connection.model(DataLimit.name, DataLimitSchema);
         this.usageModel = this.connection.model(DataUsage.name, DataUsageSchema);
@@ -58,7 +58,7 @@ export class LimitsService {
             currentUsage = await this.usageModel.create({ tenantId });
         }
 
-        // Force refresh from database to avoid stale cache
+        
         await currentUsage.reload?.() || (currentUsage = await this.usageModel.findOne({ tenantId }).exec());
 
         console.log('📊 [Limits] Current state before check:', {
@@ -70,7 +70,7 @@ export class LimitsService {
             willExceed: currentUsage.documentsCount + incomingDocsCount > limit.maxDocuments
         });
 
-        // NOTE: We skip pre-check and rely ONLY on atomic operation to avoid race conditions
+        
 
         console.log('🔍 [Limits] Attempting atomic update:', {
             tenantId,
@@ -129,7 +129,7 @@ export class LimitsService {
                     }
                 });
             }
-            // Если лимит все еще не превышен, пробуем еще раз атомарно
+           
             const retryUpdate = await this.usageModel.findOneAndUpdate(
                 {
                     tenantId,
@@ -145,7 +145,7 @@ export class LimitsService {
             ).exec();
             
             if (!retryUpdate) {
-                // Если все еще не получилось, значит лимит превышен
+            
                 const finalCheck = await this.usageModel.findOne({ tenantId }).exec();
                 const percentage = Math.round(
                     ((finalCheck.documentsCount + incomingDocsCount) / limit.maxDocuments) * 100
@@ -169,7 +169,7 @@ export class LimitsService {
                 });
             }
             
-            // Успешно обновлено после retry
+           
             this.monitoring.recordResourceUsage(
                 tenantId,
                 'documents',
@@ -539,5 +539,22 @@ export class LimitsService {
         }
 
         return usage;
+    }
+
+    async setUsageForTenant(tenantId: string, usage: any): Promise<any> {
+        console.log('🔧 [Limits] Manually setting usage for tenant:', tenantId, usage);
+
+        const result = await this.usageModel.findOneAndUpdate(
+            { tenantId },
+            {
+                documentsCount: usage.documentsCount ?? 0,
+                dataSizeKB: usage.dataSizeKB ?? 0,
+                queriesCount: usage.queriesCount ?? 0
+            },
+            { upsert: true, new: true }
+        ).exec();
+
+        console.log('✅ [Limits] Usage updated:', result);
+        return result;
     }
 }

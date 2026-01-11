@@ -10,7 +10,6 @@ necessary
 ✅ Role model (admin vs. user) in development// future
 ✅ Patient search (by first name, last name, age) To be done// future 
 ✅ Change history (who, when, and what was changed) To be done
-✅ Data encryption (additional privacy) How to do this?  Is this necessary?
 ✅ Caching? no, not required right now// mb in future if system will grow and will be fully in production
 
 DONE

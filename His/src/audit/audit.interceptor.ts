@@ -9,7 +9,7 @@ import { MonitoringService } from '../monitoring/monitoring.service';
 export class AuditInterceptor implements NestInterceptor {
     constructor(
         private readonly audit: AuditService,
-        private readonly monitoring: MonitoringService, // ← ДОБАВИЛИ
+        private readonly monitoring: MonitoringService, 
     ) { }
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {

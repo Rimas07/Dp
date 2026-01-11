@@ -20,13 +20,13 @@ export class AuthService {
     ) { }
 
     async login(credentials: LoginCredentialsDto) {
-        //Find if user exists by email
+     
         const { email, password } = credentials;
         const user = await this.usersService.getUserByEmail(email);
         if (!user) {
             throw new UnauthorizedException('Wrong credentials');
         }
-        //Compare entered password with existing password
+       
         const passwordMatch = await bcrypt.compare(password.toString(), user.password);
         if (!passwordMatch) {
             throw new UnauthorizedException('Wrong credentials');
@@ -81,14 +81,14 @@ export class AuthService {
             throw new Error('Encryption key is not configured');
         }
 
-        //Encrypt the Secret Key
+        
 
         const encryptedSecret = encrypt(
             jwtSecret,
             encryptionKey
         );
 
-        //Get Access to the tenant specific Model
+      
         const SecretsModel = await this.tenantConnectionService.getTenantModel(
             {
                 name: Secrets.name,
@@ -97,7 +97,7 @@ export class AuthService {
             tenantId,
         );
 
-        //     //Store the encrypted secret key
+        
         await SecretsModel.create({ jwtSecret: encryptedSecret });
     }
 
