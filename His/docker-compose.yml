@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  # Основное приложение HIS
+
   his-app:
     build: .
     ports:
@@ -18,7 +18,7 @@ services:
       - his-network
     restart: unless-stopped
 
-  # MongoDB для хранения данных
+
   mongodb:
     image: mongo:7.0
     container_name: his-mongodb
@@ -32,7 +32,7 @@ services:
       - his-network
     restart: unless-stopped
 
-  # RabbitMQ для микросервисов и аудита
+  
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: his-rabbitmq
@@ -51,7 +51,7 @@ services:
       - his-network
     restart: unless-stopped
 
-  # Producer сервис (опционально)
+  
   producer:
     build:
       context: ../producer
@@ -69,7 +69,7 @@ services:
     profiles:
       - microservices # Запускается только при указании профиля
 
-  # Consumer сервис (опционально)
+
   consumer:
     build:
       context: ./consumer
