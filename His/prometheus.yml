@@ -4,36 +4,27 @@ global:
 
 scrape_configs:
  
-  # Локальное приложение (для разработки)
+  
   - job_name: 'his-application'
     static_configs:
       - targets: ['host.docker.internal:3000'] 
     metrics_path: '/metrics' 
 
-  # Локальный прокси-сервер (для разработки)
+
   - job_name: 'his-proxy-server'
     static_configs:
       - targets: ['host.docker.internal:3001']
     metrics_path: '/metrics'
 
-  # Облачное приложение на Render.com
+ 
   - job_name: 'his-application-render'
     scheme: https
     static_configs:
       - targets: ['mongodb-proxy-zvw6.onrender.com']
     metrics_path: '/metrics'
-    scrape_interval: 30s  # Можно увеличить интервал для облака
+    scrape_interval: 30s  
     
-    # Если нужно использовать авторизацию (раскомментируйте и настройте):
-    # bearer_token: 'your-bearer-token-here'
-    # Или basic auth:
-    # basic_auth:
-    #   username: 'prometheus'
-    #   password: 'your-password-here'
-    
-    # Игнорировать ошибки SSL (если используются самоподписанные сертификаты)
-    # tls_config:
-    #   insecure_skip_verify: true
+   
  
   - job_name: 'mongodb'
     static_configs:
