@@ -1,16 +1,18 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { LimitsContextInterceptor } from './limits/limits.interceptor';// limits interceptor 
+import { LimitsContextInterceptor } from './limits/limits.interceptor';// limits interceptor
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { MonitoringService } from './monitoring/monitoring.service';
 import { MonitoringInterceptor } from './monitoring/monitoring.interceptor';
 import { ProxyService } from './proxy/proxy.service';
+import { join } from 'path';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap'); 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const configService = app.get(ConfigService);
   const monitoringService = app.get(MonitoringService);
@@ -53,6 +55,12 @@ async function bootstrap() {
       logger.warn(`ℹ️  You can still use the proxy via ProxyController on port ${configService.get<number>('server.port') || 3000}`);
     }
   }
+
+  // Serve frontend
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.get('/app', (req, res) => {
+    res.sendFile(join(__dirname, 'frontend.html'));
+  });
 
   const port = configService.get<number>('server.port') || 3000;
   await app.listen(port);
