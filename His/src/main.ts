@@ -8,7 +8,6 @@ import { ConfigService } from '@nestjs/config';
 import { MonitoringService } from './monitoring/monitoring.service';
 import { MonitoringInterceptor } from './monitoring/monitoring.interceptor';
 import { ProxyService } from './proxy/proxy.service';
-import { join } from 'path';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap'); 
@@ -55,12 +54,6 @@ async function bootstrap() {
       logger.warn(`ℹ️  You can still use the proxy via ProxyController on port ${configService.get<number>('server.port') || 3000}`);
     }
   }
-
-  // Serve frontend
-  const expressApp = app.getHttpAdapter().getInstance();
-  expressApp.get('/app', (req, res) => {
-    res.sendFile(join(__dirname, 'frontend.html'));
-  });
 
   const port = configService.get<number>('server.port') || 3000;
   await app.listen(port);
