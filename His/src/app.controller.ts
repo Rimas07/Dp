@@ -9,6 +9,6 @@ export class AppController {
 
   @Get()
   serveFrontend(@Res() res: Response) {
-    res.sendFile(join(__dirname, 'frontend.html'));
+    res.sendFile(join(__dirname, '..', 'frontend.html'));
   }
 }
