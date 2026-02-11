@@ -317,6 +317,7 @@
             <button class="nav-btn" onclick="showSection('login')" data-i18n="nav.login">🔐 Авторизация</button>
             <button class="nav-btn" onclick="showSection('tenants')" data-i18n="nav.companies">🏢 Компании</button>
             <button class="nav-btn" onclick="showSection('patients')" data-i18n="nav.patients">👥 Пациенты</button>
+            <button class="nav-btn" onclick="showSection('users')" data-i18n="nav.users">👤 Пользователи</button>
             <button class="nav-btn" onclick="showSection('limits')" data-i18n="nav.limits">📊 Лимиты</button>
             <button class="nav-btn" onclick="showSection('audit')" data-i18n="nav.audit">📋 Аудит</button>
             <button class="nav-btn" onclick="logout()" style="background: #e74c3c;" data-i18n="nav.logout">🚪
@@ -407,6 +408,41 @@
 
                 <div id="patientsList"></div>
                 <div id="patientsMessage"></div>
+
+                <!-- Edit Patient Modal -->
+                <div id="editPatientModal" class="hidden">
+                    <h3 data-i18n="patients.editTitle">Редактировать пациента</h3>
+                    <form id="editPatientForm">
+                        <input type="hidden" id="editPatientId">
+                        <div class="form-group">
+                            <label for="editPatientName" data-i18n="patients.name">Имя:</label>
+                            <input type="text" id="editPatientName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editPatientSurname" data-i18n="patients.surname">Фамилия:</label>
+                            <input type="text" id="editPatientSurname" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editPatientAge" data-i18n="patients.age">Возраст:</label>
+                            <input type="text" id="editPatientAge" required>
+                        </div>
+                        <button type="submit" class="btn btn-success" data-i18n="patients.saveBtn">Сохранить</button>
+                        <button type="button" onclick="hideEditPatientForm()" class="btn btn-danger" data-i18n="patients.cancelBtn">Отмена</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Секция пользователей -->
+            <div id="users" class="section">
+                <h2 data-i18n="nav.users">👤 Пользователи</h2>
+                <div class="form-group">
+                    <label for="userSearchEmail" data-i18n="users.searchByEmail">Поиск по Email:</label>
+                    <input type="email" id="userSearchEmail" data-i18n-placeholder="users.emailPlaceholder" placeholder="Введите email">
+                </div>
+                <button onclick="searchUserByEmail()" class="btn" data-i18n="users.searchBtn">Найти</button>
+
+                <div id="userSearchResult"></div>
+                <div id="usersMessage"></div>
             </div>
 
             <!-- Секция лимитов -->
@@ -419,6 +455,25 @@
                 </div>
                 <button onclick="loadLimits()" class="btn" data-i18n="limits.loadBtn">Загрузить лимиты</button>
                 <button onclick="loadUsage()" class="btn" data-i18n="limits.loadUsageBtn">Загрузить статистику</button>
+                <button onclick="showEditLimitsForm()" class="btn btn-success" data-i18n="limits.editBtn">Изменить лимиты</button>
+
+                <div id="editLimitsForm" class="hidden">
+                    <h3 data-i18n="limits.editTitle">Изменить лимиты</h3>
+                    <div class="form-group">
+                        <label for="limitMaxDocs" data-i18n="limits.maxDocuments">Макс. документов:</label>
+                        <input type="number" id="limitMaxDocs" value="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="limitMaxDataSize" data-i18n="limits.maxDataSize">Макс. размер данных (KB):</label>
+                        <input type="number" id="limitMaxDataSize" value="51200">
+                    </div>
+                    <div class="form-group">
+                        <label for="limitMonthlyQueries" data-i18n="limits.monthlyQueries">Месячные запросы:</label>
+                        <input type="number" id="limitMonthlyQueries" value="1000">
+                    </div>
+                    <button onclick="saveLimits()" class="btn btn-success" data-i18n="patients.saveBtn">Сохранить</button>
+                    <button onclick="document.getElementById('editLimitsForm').classList.add('hidden')" class="btn btn-danger" data-i18n="patients.cancelBtn">Отмена</button>
+                </div>
 
                 <div id="limitsContent"></div>
                 <div id="limitsMessage"></div>
@@ -430,8 +485,7 @@
                 <p data-i18n="audit.description">Здесь отображается журнал всех действий в системе.</p>
                 <button onclick="loadSystemStats()" class="btn" data-i18n="audit.refreshBtn">🔄 Обновить
                     статистику</button>
-                <button onclick="testPatientsCount()" class="btn" data-i18n="audit.checkPatientsBtn">🔍 Проверить
-                    пациентов</button>
+                <button onclick="loadAuditLogs()" class="btn" data-i18n="audit.loadLogsBtn">📜 Загрузить логи</button>
                 <div class="card">
                     <h3 data-i18n="audit.systemStats">Статистика системы</h3>
                     <div class="grid">
@@ -450,6 +504,33 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Audit Logs Filter -->
+                <div style="margin-top: 20px;">
+                    <h3 data-i18n="audit.filterTitle">Фильтр логов</h3>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="auditFilterTenant" data-i18n="audit.filterTenant">Тенант ID:</label>
+                            <input type="text" id="auditFilterTenant" data-i18n-placeholder="audit.filterTenantPlaceholder" placeholder="Все тенанты">
+                        </div>
+                        <div class="form-group">
+                            <label for="auditFilterType" data-i18n="audit.filterType">Тип события:</label>
+                            <select id="auditFilterType">
+                                <option value="">Все</option>
+                                <option value="PATIENT_CREATE">PATIENT_CREATE</option>
+                                <option value="PATIENT_READ">PATIENT_READ</option>
+                                <option value="PATIENT_UPDATE">PATIENT_UPDATE</option>
+                                <option value="PATIENT_DELETE">PATIENT_DELETE</option>
+                                <option value="LOGIN">LOGIN</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="auditFilterLimit" data-i18n="audit.filterLimit">Количество:</label>
+                            <input type="number" id="auditFilterLimit" value="50" min="1" max="500">
+                        </div>
+                    </div>
+                </div>
+                <div id="auditLogsContent"></div>
             </div>
         </div>
     </div>
@@ -465,6 +546,7 @@
                     login: "🔐 Авторизация",
                     companies: "🏢 Компании",
                     patients: "👥 Пациенты",
+                    users: "👤 Пользователи",
                     limits: "📊 Лимиты",
                     audit: "📋 Аудит",
                     logout: "🚪 Выйти"
@@ -499,20 +581,37 @@
                     loadBtn: "Загрузить пациентов",
                     addBtn: "Добавить пациента",
                     addNewTitle: "Добавить нового пациента",
+                    editTitle: "Редактировать пациента",
                     name: "Имя:",
                     surname: "Фамилия:",
                     age: "Возраст:",
                     agePlaceholder: "Например: 25",
-                    saveBtn: "Сохранить пациента",
+                    saveBtn: "Сохранить",
                     cancelBtn: "Отмена",
                     successAdd: "Пациент успешно добавлен!",
+                    successEdit: "Пациент успешно обновлён!",
+                    successDelete: "Пациент удалён!",
+                    confirmDelete: "Вы уверены, что хотите удалить этого пациента?",
                     errorMessage: "Ошибка:",
                     needTenantId: "Введите ID тенанта",
                     needAuth: "Необходимо авторизоваться",
                     notFound: "Пациенты не найдены",
                     tableHeaderName: "Имя",
                     tableHeaderSurname: "Фамилия",
-                    tableHeaderAge: "Возраст"
+                    tableHeaderAge: "Возраст",
+                    tableHeaderActions: "Действия",
+                    editBtn: "Изменить",
+                    deleteBtn: "Удалить"
+                },
+                users: {
+                    searchByEmail: "Поиск по Email:",
+                    emailPlaceholder: "Введите email",
+                    searchBtn: "Найти",
+                    name: "Имя:",
+                    email: "Email:",
+                    tenantId: "Тенант ID:",
+                    notFound: "Пользователь не найден",
+                    errorMessage: "Ошибка:"
                 },
                 limits: {
                     title: "📊 Управление лимитами",
@@ -520,8 +619,14 @@
                     tenantIdPlaceholder: "Введите ID тенанта",
                     loadBtn: "Загрузить лимиты",
                     loadUsageBtn: "Загрузить статистику",
+                    editBtn: "Изменить лимиты",
+                    editTitle: "Изменить лимиты",
+                    maxDocuments: "Макс. документов:",
+                    maxDataSize: "Макс. размер данных (KB):",
+                    monthlyQueries: "Месячные запросы:",
                     currentLimits: "Текущие лимиты",
                     usageStats: "Статистика использования",
+                    successSave: "Лимиты успешно сохранены!",
                     needTenantId: "Введите ID тенанта",
                     needAuth: "Необходимо авторизоваться",
                     errorMessage: "Ошибка:"
@@ -530,7 +635,12 @@
                     title: "📋 Журнал аудита",
                     description: "Здесь отображается журнал всех действий в системе.",
                     refreshBtn: "🔄 Обновить статистику",
-                    checkPatientsBtn: "🔍 Проверить пациентов",
+                    loadLogsBtn: "📜 Загрузить логи",
+                    filterTitle: "Фильтр логов",
+                    filterTenant: "Тенант ID:",
+                    filterTenantPlaceholder: "Все тенанты",
+                    filterType: "Тип события:",
+                    filterLimit: "Количество:",
                     systemStats: "Статистика системы",
                     totalTenants: "Общее количество тенантов",
                     totalPatients: "Общее количество пациентов",
@@ -541,9 +651,13 @@
                     recentEvents: "Последние события",
                     time: "Время",
                     event: "Событие",
+                    method: "Метод",
+                    path: "Путь",
+                    status: "Статус",
                     tenant: "Тенант",
                     user: "Пользователь",
-                    noEvents: "События аудита не найдены"
+                    noEvents: "События аудита не найдены",
+                    noLogs: "Логи аудита не найдены"
                 },
                 common: {
                     loggedOut: "Вы вышли из системы",
@@ -560,6 +674,7 @@
                     login: "🔐 Login",
                     companies: "🏢 Companies",
                     patients: "👥 Patients",
+                    users: "👤 Users",
                     limits: "📊 Limits",
                     audit: "📋 Audit",
                     logout: "🚪 Logout"
@@ -594,20 +709,37 @@
                     loadBtn: "Load Patients",
                     addBtn: "Add Patient",
                     addNewTitle: "Add New Patient",
+                    editTitle: "Edit Patient",
                     name: "First Name:",
                     surname: "Last Name:",
                     age: "Age:",
                     agePlaceholder: "Example: 25",
-                    saveBtn: "Save Patient",
+                    saveBtn: "Save",
                     cancelBtn: "Cancel",
                     successAdd: "Patient successfully added!",
+                    successEdit: "Patient successfully updated!",
+                    successDelete: "Patient deleted!",
+                    confirmDelete: "Are you sure you want to delete this patient?",
                     errorMessage: "Error:",
                     needTenantId: "Enter tenant ID",
                     needAuth: "You need to log in",
                     notFound: "No patients found",
                     tableHeaderName: "First Name",
                     tableHeaderSurname: "Last Name",
-                    tableHeaderAge: "Age"
+                    tableHeaderAge: "Age",
+                    tableHeaderActions: "Actions",
+                    editBtn: "Edit",
+                    deleteBtn: "Delete"
+                },
+                users: {
+                    searchByEmail: "Search by Email:",
+                    emailPlaceholder: "Enter email",
+                    searchBtn: "Search",
+                    name: "Name:",
+                    email: "Email:",
+                    tenantId: "Tenant ID:",
+                    notFound: "User not found",
+                    errorMessage: "Error:"
                 },
                 limits: {
                     title: "📊 Limits Management",
@@ -615,8 +747,14 @@
                     tenantIdPlaceholder: "Enter tenant ID",
                     loadBtn: "Load Limits",
                     loadUsageBtn: "Load Statistics",
+                    editBtn: "Edit Limits",
+                    editTitle: "Edit Limits",
+                    maxDocuments: "Max Documents:",
+                    maxDataSize: "Max Data Size (KB):",
+                    monthlyQueries: "Monthly Queries:",
                     currentLimits: "Current Limits",
                     usageStats: "Usage Statistics",
+                    successSave: "Limits saved successfully!",
                     needTenantId: "Enter tenant ID",
                     needAuth: "You need to log in",
                     errorMessage: "Error:"
@@ -625,7 +763,12 @@
                     title: "📋 Audit Log",
                     description: "This displays the log of all actions in the system.",
                     refreshBtn: "🔄 Refresh Statistics",
-                    checkPatientsBtn: "🔍 Check Patients",
+                    loadLogsBtn: "📜 Load Logs",
+                    filterTitle: "Log Filter",
+                    filterTenant: "Tenant ID:",
+                    filterTenantPlaceholder: "All tenants",
+                    filterType: "Event Type:",
+                    filterLimit: "Limit:",
                     systemStats: "System Statistics",
                     totalTenants: "Total Tenants",
                     totalPatients: "Total Patients",
@@ -636,9 +779,13 @@
                     recentEvents: "Recent Events",
                     time: "Time",
                     event: "Event",
+                    method: "Method",
+                    path: "Path",
+                    status: "Status",
                     tenant: "Tenant",
                     user: "User",
-                    noEvents: "No audit events found"
+                    noEvents: "No audit events found",
+                    noLogs: "No audit logs found"
                 },
                 common: {
                     loggedOut: "You have been logged out",
@@ -898,26 +1045,114 @@
 
         function displayPatients(patients) {
             const container = document.getElementById('patientsList');
+            const t = translations[currentLanguage].patients;
 
             if (!patients || patients.length === 0) {
-                container.innerHTML = `<p>${translations[currentLanguage].patients.notFound}</p>`;
+                container.innerHTML = `<p>${t.notFound}</p>`;
                 return;
             }
 
-            let html = `<table class="table"><thead><tr><th>${translations[currentLanguage].patients.tableHeaderName}</th><th>${translations[currentLanguage].patients.tableHeaderSurname}</th><th>${translations[currentLanguage].patients.tableHeaderAge}</th></tr></thead><tbody>`;
+            let html = `<table class="table"><thead><tr><th>${t.tableHeaderName}</th><th>${t.tableHeaderSurname}</th><th>${t.tableHeaderAge}</th><th>${t.tableHeaderActions}</th></tr></thead><tbody>`;
 
             patients.forEach(patient => {
+                const id = patient._id || patient.id;
                 html += `
                     <tr>
                         <td>${patient.name || 'N/A'}</td>
                         <td>${patient.surname || 'N/A'}</td>
                         <td>${patient.age || 'N/A'}</td>
+                        <td>
+                            <button class="btn" style="padding:6px 12px;font-size:12px" onclick="openEditPatient('${id}','${(patient.name||'').replace(/'/g,"\\'")}','${(patient.surname||'').replace(/'/g,"\\'")}','${patient.age||''}')">${t.editBtn}</button>
+                            <button class="btn btn-danger" style="padding:6px 12px;font-size:12px" onclick="deletePatient('${id}')">${t.deleteBtn}</button>
+                        </td>
                     </tr>
                 `;
             });
 
             html += '</tbody></table>';
             container.innerHTML = html;
+        }
+
+        function openEditPatient(id, name, surname, age) {
+            document.getElementById('editPatientModal').classList.remove('hidden');
+            document.getElementById('editPatientId').value = id;
+            document.getElementById('editPatientName').value = name;
+            document.getElementById('editPatientSurname').value = surname;
+            document.getElementById('editPatientAge').value = age;
+        }
+
+        function hideEditPatientForm() {
+            document.getElementById('editPatientModal').classList.add('hidden');
+        }
+
+        document.getElementById('editPatientForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const tenantId = document.getElementById('tenantId').value;
+            const patientId = document.getElementById('editPatientId').value;
+
+            if (!currentToken) {
+                showMessage('patientsMessage', translations[currentLanguage].patients.needAuth, 'error');
+                return;
+            }
+
+            const patientData = {
+                name: document.getElementById('editPatientName').value,
+                surname: document.getElementById('editPatientSurname').value,
+                age: document.getElementById('editPatientAge').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients/${patientId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Tenant-ID': tenantId,
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify(patientData)
+                });
+
+                if (response.ok) {
+                    showMessage('patientsMessage', translations[currentLanguage].patients.successEdit, 'success');
+                    hideEditPatientForm();
+                    loadPatients();
+                } else {
+                    const data = await response.json();
+                    showMessage('patientsMessage', `${translations[currentLanguage].patients.errorMessage} ${data.message || 'Failed'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('patientsMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
+            }
+        });
+
+        async function deletePatient(patientId) {
+            if (!confirm(translations[currentLanguage].patients.confirmDelete)) return;
+
+            const tenantId = document.getElementById('tenantId').value;
+            if (!currentToken) {
+                showMessage('patientsMessage', translations[currentLanguage].patients.needAuth, 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients/${patientId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Tenant-ID': tenantId,
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    showMessage('patientsMessage', translations[currentLanguage].patients.successDelete, 'success');
+                    loadPatients();
+                } else {
+                    const data = await response.json();
+                    showMessage('patientsMessage', `${translations[currentLanguage].patients.errorMessage} ${data.message || 'Failed'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('patientsMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
+            }
         }
 
         async function loadLimits() {
@@ -986,22 +1221,154 @@
 
         function displayLimits(limits) {
             const container = document.getElementById('limitsContent');
+            const t = translations[currentLanguage].limits;
             container.innerHTML = `
-                <h3>${translations[currentLanguage].limits.currentLimits}</h3>
+                <h3>${t.currentLimits}</h3>
                 <div class="card">
-                    <pre>${JSON.stringify(limits, null, 2)}</pre>
+                    <table class="table">
+                        <tr><td><strong>${t.maxDocuments}</strong></td><td>${limits.maxDocuments || 'N/A'}</td></tr>
+                        <tr><td><strong>${t.maxDataSize}</strong></td><td>${limits.maxDataSizeKB || 'N/A'}</td></tr>
+                        <tr><td><strong>${t.monthlyQueries}</strong></td><td>${limits.monthlyQueries || 'N/A'}</td></tr>
+                    </table>
                 </div>
             `;
+            // Pre-fill edit form
+            if (limits.maxDocuments) document.getElementById('limitMaxDocs').value = limits.maxDocuments;
+            if (limits.maxDataSizeKB) document.getElementById('limitMaxDataSize').value = limits.maxDataSizeKB;
+            if (limits.monthlyQueries) document.getElementById('limitMonthlyQueries').value = limits.monthlyQueries;
         }
 
         function displayUsage(usage) {
             const container = document.getElementById('limitsContent');
+            const t = translations[currentLanguage].limits;
             container.innerHTML = `
-                <h3>${translations[currentLanguage].limits.usageStats}</h3>
+                <h3>${t.usageStats}</h3>
                 <div class="card">
-                    <pre>${JSON.stringify(usage, null, 2)}</pre>
+                    <table class="table">
+                        <tr><td><strong>documentsCount</strong></td><td>${usage.documentsCount || 0}</td></tr>
+                        <tr><td><strong>dataSizeKB</strong></td><td>${usage.dataSizeKB || 0}</td></tr>
+                        <tr><td><strong>queriesCount</strong></td><td>${usage.queriesCount || 0}</td></tr>
+                    </table>
                 </div>
             `;
+        }
+
+        function showEditLimitsForm() {
+            const tenantId = document.getElementById('limitsTenantId').value;
+            if (!tenantId) {
+                showMessage('limitsMessage', translations[currentLanguage].limits.needTenantId, 'error');
+                return;
+            }
+            document.getElementById('editLimitsForm').classList.remove('hidden');
+        }
+
+        async function saveLimits() {
+            const tenantId = document.getElementById('limitsTenantId').value;
+            if (!tenantId || !currentToken) {
+                showMessage('limitsMessage', translations[currentLanguage].limits.needTenantId, 'error');
+                return;
+            }
+
+            const limitsData = {
+                maxDocuments: parseInt(document.getElementById('limitMaxDocs').value),
+                maxDataSizeKB: parseInt(document.getElementById('limitMaxDataSize').value),
+                monthlyQueries: parseInt(document.getElementById('limitMonthlyQueries').value)
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/limits/${tenantId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Tenant-ID': tenantId,
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify(limitsData)
+                });
+
+                if (response.ok) {
+                    showMessage('limitsMessage', translations[currentLanguage].limits.successSave, 'success');
+                    document.getElementById('editLimitsForm').classList.add('hidden');
+                    loadLimits();
+                } else {
+                    const data = await response.json();
+                    showMessage('limitsMessage', `${translations[currentLanguage].limits.errorMessage} ${data.message || 'Failed'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('limitsMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
+            }
+        }
+
+        async function searchUserByEmail() {
+            const email = document.getElementById('userSearchEmail').value;
+            if (!email) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/email/${encodeURIComponent(email)}`);
+                const data = await response.json();
+
+                const container = document.getElementById('userSearchResult');
+                const t = translations[currentLanguage].users;
+
+                if (response.ok && data) {
+                    container.innerHTML = `
+                        <div class="card" style="margin-top:15px">
+                            <table class="table">
+                                <tr><td><strong>${t.name}</strong></td><td>${data.name || 'N/A'}</td></tr>
+                                <tr><td><strong>${t.email}</strong></td><td>${data.email || 'N/A'}</td></tr>
+                                <tr><td><strong>${t.tenantId}</strong></td><td>${data.tenantId || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `<div class="alert alert-error" style="margin-top:15px">${t.notFound}</div>`;
+                }
+            } catch (error) {
+                showMessage('usersMessage', `${translations[currentLanguage].common.connectionError} ${error.message}`, 'error');
+            }
+        }
+
+        async function loadAuditLogs() {
+            const tenantId = document.getElementById('auditFilterTenant').value;
+            const eventType = document.getElementById('auditFilterType').value;
+            const limit = document.getElementById('auditFilterLimit').value || 50;
+
+            let url = `${API_BASE_URL}/audit?limit=${limit}`;
+            if (tenantId) url += `&tenantId=${encodeURIComponent(tenantId)}`;
+            if (eventType) url += `&eventType=${encodeURIComponent(eventType)}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                const container = document.getElementById('auditLogsContent');
+                const t = translations[currentLanguage].audit;
+
+                if (response.ok && data.length > 0) {
+                    let html = `<div class="card" style="margin-top:15px"><table class="table"><thead><tr>
+                        <th>${t.time}</th><th>${t.event}</th><th>${t.method}</th><th>${t.path}</th><th>${t.status}</th><th>${t.tenant}</th>
+                    </tr></thead><tbody>`;
+
+                    data.forEach(log => {
+                        const date = new Date(log.timestamp).toLocaleString(currentLanguage === 'ru' ? 'ru-RU' : 'en-US');
+                        html += `<tr>
+                            <td>${date}</td>
+                            <td>${log.eventType || 'N/A'}</td>
+                            <td>${log.method || 'N/A'}</td>
+                            <td>${log.path || 'N/A'}</td>
+                            <td>${log.statusCode || 'N/A'}</td>
+                            <td>${log.tenantId || 'N/A'}</td>
+                        </tr>`;
+                    });
+
+                    html += '</tbody></table></div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `<p style="margin-top:15px">${t.noLogs}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('auditLogsContent').innerHTML =
+                    `<div class="alert alert-error">${translations[currentLanguage].common.connectionError} ${error.message}</div>`;
+            }
         }
 
         async function loadSystemStats() {
@@ -1112,25 +1479,6 @@
             }
         }
 
-        async function testPatientsCount() {
-            try {
-                console.log('🔍 Testing patient count...');
-                const response = await fetch(`${API_BASE_URL}/audit/patients-count`);
-                const data = await response.json();
-
-                console.log('📊 Patient count result:', data);
-
-                if (response.ok) {
-                    alert(`Найдено пациентов: ${data.totalPatients}\nТенантов: ${data.totalTenants}\n\nДетали:\n${JSON.stringify(data.tenantStats, null, 2)}`);
-                } else {
-                    alert(`Ошибка: ${data.error || 'Неизвестная ошибка'}`);
-                }
-            } catch (error) {
-                console.error('❌ Testing error:', error);
-                alert(`Ошибка подключения: ${error.message}`);
-            }
-        }
-
         window.addEventListener('error', function (e) {
             if (e.message.includes('CORS')) {
                 console.warn('CORS error. Make sure the backend server is running and configured for CORS.');
@@ -1138,17 +1486,5 @@
         });
     </script>
 </body>
-
-</html>
-
-</html>
-
-</html>
-
-</html>
-
-</html>
-
-</html>
 
 </html>
