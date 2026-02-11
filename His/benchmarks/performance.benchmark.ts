@@ -9,7 +9,7 @@ interface BenchmarkResult {
   avgTime: number;
   minTime: number;
   maxTime: number;
-  throughput: number; // ops/sec
+  throughput: number; 
   errors: number;
   p50: number;
   p95: number;
@@ -28,9 +28,7 @@ interface BenchmarkConfig {
 class PerformanceBenchmark {
   private results: BenchmarkResult[] = [];
 
-  /**
-   * Запуск бенчмарка для измерения latency
-   */
+  
   async benchmarkLatency(config: BenchmarkConfig): Promise<BenchmarkResult> {
     console.log(`\n📊 Benchmark: Latency Test`);
     console.log(`   Operations: ${config.operations}`);
@@ -91,9 +89,7 @@ class PerformanceBenchmark {
     return result;
   }
 
-  /**
-   * Запуск бенчмарка для измерения throughput
-   */
+  
   async benchmarkThroughput(config: BenchmarkConfig): Promise<BenchmarkResult> {
     console.log(`\n📊 Benchmark: Throughput Test`);
     console.log(`   Operations: ${config.operations}`);
@@ -104,7 +100,7 @@ class PerformanceBenchmark {
 
     const startTime = performance.now();
 
-    // Отправляем все запросы параллельно
+    
     const promises = Array(config.operations)
       .fill(0)
       .map(async (_, index) => {
@@ -147,9 +143,6 @@ class PerformanceBenchmark {
     return result;
   }
 
-  /**
-   * Сравнение производительности: Proxy vs Direct MongoDB
-   */
   async benchmarkProxyOverhead(config: BenchmarkConfig): Promise<{
     proxy: BenchmarkResult;
     direct: BenchmarkResult;
